@@ -1,59 +1,4 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Snake Fixed</title>
-    <style>
-        body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
-        #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); }
-        canvas { background: #000; box-shadow: 0 0 30px rgba(0, 255, 0, 0.2); border: 3px solid lime; border-radius: 5px; }
-        .screen { display: none; }
-        .active { display: block; }
-        h1 { margin-top: 0; text-shadow: 0 0 10px lime; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-        button { padding: 12px; font-size: 14px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; background: lime; color: black; }
-        button:hover { filter: brightness(1.2); }
-        select, input[type="color"] { width: 100%; padding: 8px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; }
-        label { font-size: 12px; color: #aaa; display: block; margin-bottom: 5px; text-align: left; }
-    </style>
-</head>
-<body>
-
-
-<div id="ui-container">
-    <div id="menu" class="screen active">
-        <h1>🐍 NEON SNAKE</h1>
-        <div class="controls">
-            <div><label>SNAKE COLOR</label><input type="color" id="snakeColor" value="#00FF00"></div>
-            <div><label>SPEED</label><select id="difficulty"><option value="150">Chill</option><option value="100" selected>Standard</option><option value="60">Insane</option></select></div>
-        </div>
-        <div style="display: grid; gap: 10px;">
-            <button id="normal">NORMAL MODE</button>
-            <button id="endless" style="background: #00d4ff;">ENDLESS MODE</button>
-            <button id="roulette" style="background: #ff00ff;">ROULETTE (CHAOS)</button>
-            <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
-        </div>
-    </div>
-
-
-    <div id="gameScreen" class="screen">
-        <canvas id="game" width="400" height="400"></canvas>
-        <h2 style="margin: 10px 0;">SCORE: <span id="score">0</span></h2>
-    </div>
-
-
-    <div id="gameOverScreen" class="screen">
-        <h1 style="color: #ff3131;">GAME OVER</h1>
-        <p id="finalScore"></p>
-        <button id="restart">PLAY AGAIN</button>
-        <button id="menuBtn" style="background: #555; color: white;">MAIN MENU</button>
-    </div>
-</div>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", function(){
+﻿document.addEventListener("DOMContentLoaded", function(){
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
@@ -63,9 +8,18 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const box = 20;
     const size = 400;
-    let snake, snake2, direction, direction2, food, score, mode, interval, speed, running = false;
+    
+    // Core Game State
+    let snake, snake2, food, score, mode, running = false;
+    let direction, nextDirection;
+    let direction2, nextDirection2;
+    
+    // Smooth Movement Variables
+    let lastTime = 0;
+    let moveProgress = 0; // 0 to 1 (percentage between cells)
 
 
+    // Listeners
     document.getElementById("normal").onclick = () => startGame("normal");
     document.getElementById("endless").onclick = () => startGame("endless");
     document.getElementById("roulette").onclick = () => startGame("roulette");
@@ -74,34 +28,29 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("menuBtn").onclick = backToMenu;
 
 
-    function showScreen(id){
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
-
-
     function startGame(selectedMode){
-        if(interval) clearInterval(interval);
         mode = selectedMode;
-        speed = parseInt(difficulty.value);
         score = 0;
+        moveProgress = 0;
         running = true;
         
-        // Fix: Spawn snake at grid-aligned coordinates
-        snake = [{x: 200, y: 200}];
-        direction = "RIGHT";
+        // Initial setup
+        snake = [{x: 200, y: 200}, {x: 180, y: 200}];
+        direction = nextDirection = "RIGHT";
 
 
         if(mode === "multiplayer"){
-            snake2 = [{x: 100, y: 100}];
-            direction2 = "RIGHT";
+            snake2 = [{x: 100, y: 100}, {x: 80, y: 100}];
+            direction2 = nextDirection2 = "RIGHT";
         }
 
 
         food = spawnFood();
         scoreDisplay.innerText = score;
-        showScreen("gameScreen");
-        interval = setInterval(loop, speed);
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById("gameScreen").classList.add('active');
+        
+        requestAnimationFrame(gameLoop);
     }
 
 
@@ -114,88 +63,143 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     document.addEventListener("keydown", e => {
-        if(!running) return;
         const key = e.key;
-        if(key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
-        if(key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
-        if(key === "ArrowUp" && direction !== "DOWN") direction = "UP";
-        if(key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+        if(key === "ArrowLeft" && direction !== "RIGHT") nextDirection = "LEFT";
+        if(key === "ArrowRight" && direction !== "LEFT") nextDirection = "RIGHT";
+        if(key === "ArrowUp" && direction !== "DOWN") nextDirection = "UP";
+        if(key === "ArrowDown" && direction !== "UP") nextDirection = "DOWN";
 
 
         if(mode === "multiplayer"){
             const k = key.toLowerCase();
-            if(k === "a" && direction2 !== "RIGHT") direction2 = "LEFT";
-            if(k === "d" && direction2 !== "LEFT") direction2 = "RIGHT";
-            if(k === "w" && direction2 !== "DOWN") direction2 = "UP";
-            if(k === "s" && direction2 !== "UP") direction2 = "DOWN";
+            if(k === "a" && direction2 !== "RIGHT") nextDirection2 = "LEFT";
+            if(k === "d" && direction2 !== "LEFT") nextDirection2 = "RIGHT";
+            if(k === "w" && direction2 !== "DOWN") nextDirection2 = "UP";
+            if(k === "s" && direction2 !== "UP") nextDirection2 = "DOWN";
         }
     });
 
 
-    function getNextHead(sArr, dir) {
-        // Fix: Extract head correctly from the array first
-        let head = { x: sArr[0].x, y: sArr[0].y };
-        if(dir === "LEFT") head.x -= box;
-        if(dir === "RIGHT") head.x += box;
-        if(dir === "UP") head.y -= box;
-        if(dir === "DOWN") head.y += box;
-        return head;
+    function getNextHead(head, dir) {
+        let n = { x: head.x, y: head.y };
+        if(dir === "LEFT") n.x -= box;
+        if(dir === "RIGHT") n.x += box;
+        if(dir === "UP") n.y -= box;
+        if(dir === "DOWN") n.y += box;
+        return n;
     }
 
 
-    function loop(){
+    function gameLoop(timestamp) {
         if(!running) return;
 
 
-        // Update P1
-        let head1 = getNextHead(snake, direction);
+        const deltaTime = timestamp - lastTime;
+        lastTime = timestamp;
+
+
+        // Calculate speed based on difficulty (milliseconds per cell)
+        const moveSpeed = parseInt(difficulty.value);
+        moveProgress += deltaTime / moveSpeed;
+
+
+        if (moveProgress >= 1) {
+            moveProgress = 0;
+            updateLogic();
+        }
+
+
+        draw(moveProgress);
+        requestAnimationFrame(gameLoop);
+    }
+
+
+    function updateLogic() {
+        direction = nextDirection;
+        let head1 = getNextHead(snake[0], direction);
+
+
+        // Border Logic
         if(mode === "endless") {
             if(head1.x < 0) head1.x = size - box; else if(head1.x >= size) head1.x = 0;
             if(head1.y < 0) head1.y = size - box; else if(head1.y >= size) head1.y = 0;
         } else if (head1.x < 0 || head1.y < 0 || head1.x >= size || head1.y >= size) return gameOver();
         
+        // Self Collision
         if(snake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
-        if(mode === "multiplayer" && snake2.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
 
 
         snake.unshift(head1);
         if(head1.x === food.x && head1.y === food.y){
             score++; scoreDisplay.innerText = score; food = spawnFood();
-            if(mode === "roulette") {
-                speed = Math.max(30, Math.floor(Math.random() * 120));
-                clearInterval(interval); interval = setInterval(loop, speed);
-            }
         } else snake.pop();
 
 
-        // Update P2
         if(mode === "multiplayer"){
-            let head2 = getNextHead(snake2, direction2);
+            direction2 = nextDirection2;
+            let head2 = getNextHead(snake2[0], direction2);
             if(head2.x < 0 || head2.y < 0 || head2.x >= size || head2.y >= size || 
-               snake2.some(seg => seg.x === head2.x && seg.y === head2.y) ||
-               snake.some(seg => seg.x === head2.x && seg.y === head2.y)) return gameOver();
+               snake2.some(seg => seg.x === head2.x && seg.y === head2.y)) return gameOver();
             
             snake2.unshift(head2);
             if(head2.x === food.x && head2.y === food.y) food = spawnFood();
             else snake2.pop();
         }
+    }
 
 
-        // Draw
-        ctx.fillStyle = "black"; ctx.fillRect(0, 0, size, size);
-        ctx.fillStyle = "red"; ctx.fillRect(food.x, food.y, box, box);
-        ctx.fillStyle = colorPicker.value;
-        snake.forEach(seg => ctx.fillRect(seg.x + 1, seg.y + 1, box - 2, box - 2));
-        if(mode === "multiplayer"){
+    function draw(progress) {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, size, size);
+
+
+        // Draw Food
+        ctx.fillStyle = "red";
+        ctx.fillRect(food.x, food.y, box, box);
+
+
+        // Render Snake 1 with Interpolation
+        ctx.fillStyle = colorPicker.value; // FIXED: Always uses current picker value
+        drawSnakeSmooth(snake, direction, progress);
+
+
+        if(mode === "multiplayer") {
             ctx.fillStyle = "#00d4ff";
-            snake2.forEach(seg => ctx.fillRect(seg.x + 1, seg.y + 1, box - 2, box - 2));
+            drawSnakeSmooth(snake2, direction2, progress);
         }
     }
 
 
-    function gameOver(){ running = false; clearInterval(interval); document.getElementById("finalScore").innerText = "Final Score: " + score; showScreen("gameOverScreen"); }
-    function backToMenu(){ running = false; clearInterval(interval); showScreen("menu"); }
+    function drawSnakeSmooth(sArr, dir, progress) {
+        sArr.forEach((seg, i) => {
+            let nextPos = (i === 0) ? getNextHead(seg, dir) : sArr[i-1];
+            
+            // Seamlessly slide between current and next position
+            let renderX = seg.x + (nextPos.x - seg.x) * progress;
+            let renderY = seg.y + (nextPos.y - seg.y) * progress;
+
+
+            // Handle wrap-around visual jumps in endless mode
+            if (Math.abs(nextPos.x - seg.x) > box) renderX = seg.x;
+            if (Math.abs(nextPos.y - seg.y) > box) renderY = seg.y;
+
+
+            ctx.fillRect(renderX + 1, renderY + 1, box - 2, box - 2);
+        });
+    }
+
+
+    function gameOver(){
+        running = false;
+        document.getElementById("finalScore").innerText = "Final Score: " + score;
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById("gameOverScreen").classList.add('active');
+    }
+
+
+    function backToMenu(){
+        running = false;
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById("menu").classList.add('active');
+    }
 });
-</script>
-</body>
-</html>
