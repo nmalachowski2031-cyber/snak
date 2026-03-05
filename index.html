@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Snake Fixed</title>
+    <title>Neon Snake Smooth</title>
     <style>
         body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
         #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); }
@@ -63,7 +63,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const box = 20;
     const size = 400;
-    let snake, snake2, direction, direction2, food, score, mode, interval, speed, running = false;
+    let snake, snake2, direction, direction2, nextDir, nextDir2, food, score, mode, speed, running = false;
+    let lastTime = 0, moveTimer = 0;
 
 
     document.getElementById("normal").onclick = () => startGame("normal");
@@ -81,27 +82,27 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function startGame(selectedMode){
-        if(interval) clearInterval(interval);
         mode = selectedMode;
         speed = parseInt(difficulty.value);
         score = 0;
         running = true;
+        moveTimer = 0;
+        lastTime = performance.now();
         
-        // Fix: Spawn snake at grid-aligned coordinates
-        snake = [{x: 200, y: 200}];
-        direction = "RIGHT";
+        snake = [{x: 200, y: 200, prevX: 200, prevY: 200}];
+        direction = nextDir = "RIGHT";
 
 
         if(mode === "multiplayer"){
-            snake2 = [{x: 100, y: 100}];
-            direction2 = "RIGHT";
+            snake2 = [{x: 100, y: 100, prevX: 100, prevY: 100}];
+            direction2 = nextDir2 = "RIGHT";
         }
 
 
         food = spawnFood();
         scoreDisplay.innerText = score;
         showScreen("gameScreen");
-        interval = setInterval(loop, speed);
+        requestAnimationFrame(gameLoop);
     }
 
 
@@ -116,25 +117,24 @@ document.addEventListener("DOMContentLoaded", function(){
     document.addEventListener("keydown", e => {
         if(!running) return;
         const key = e.key;
-        if(key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
-        if(key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
-        if(key === "ArrowUp" && direction !== "DOWN") direction = "UP";
-        if(key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+        if(key === "ArrowLeft" && direction !== "RIGHT") nextDir = "LEFT";
+        if(key === "ArrowRight" && direction !== "LEFT") nextDir = "RIGHT";
+        if(key === "ArrowUp" && direction !== "DOWN") nextDir = "UP";
+        if(key === "ArrowDown" && direction !== "UP") nextDir = "DOWN";
 
 
         if(mode === "multiplayer"){
             const k = key.toLowerCase();
-            if(k === "a" && direction2 !== "RIGHT") direction2 = "LEFT";
-            if(k === "d" && direction2 !== "LEFT") direction2 = "RIGHT";
-            if(k === "w" && direction2 !== "DOWN") direction2 = "UP";
-            if(k === "s" && direction2 !== "UP") direction2 = "DOWN";
+            if(k === "a" && direction2 !== "RIGHT") nextDir2 = "LEFT";
+            if(k === "d" && direction2 !== "LEFT") nextDir2 = "RIGHT";
+            if(k === "w" && direction2 !== "DOWN") nextDir2 = "UP";
+            if(k === "s" && direction2 !== "UP") nextDir2 = "DOWN";
         }
     });
 
 
     function getNextHead(sArr, dir) {
-        // Fix: Extract head correctly from the array first
-        let head = { x: sArr[0].x, y: sArr[0].y };
+        let head = { x: sArr[0].x, y: sArr[0].y, prevX: sArr[0].x, prevY: sArr[0].y };
         if(dir === "LEFT") head.x -= box;
         if(dir === "RIGHT") head.x += box;
         if(dir === "UP") head.y -= box;
@@ -143,58 +143,97 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    function loop(){
-        if(!running) return;
+    function gameLoop(currentTime) {
+        if (!running) return;
+        requestAnimationFrame(gameLoop);
 
 
-        // Update P1
+        const deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+        moveTimer += deltaTime;
+
+
+        if (moveTimer >= speed) {
+            updateLogic();
+            moveTimer = 0;
+        }
+
+
+        draw(moveTimer / speed);
+    }
+
+
+    function updateLogic() {
+        direction = nextDir;
         let head1 = getNextHead(snake, direction);
+        
         if(mode === "endless") {
-            if(head1.x < 0) head1.x = size - box; else if(head1.x >= size) head1.x = 0;
-            if(head1.y < 0) head1.y = size - box; else if(head1.y >= size) head1.y = 0;
+            if(head1.x < 0) { head1.x = size - box; head1.prevX = size; } 
+            else if(head1.x >= size) { head1.x = 0; head1.prevX = -box; }
+            if(head1.y < 0) { head1.y = size - box; head1.prevY = size; } 
+            else if(head1.y >= size) { head1.y = 0; head1.prevY = -box; }
         } else if (head1.x < 0 || head1.y < 0 || head1.x >= size || head1.y >= size) return gameOver();
         
         if(snake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
-        if(mode === "multiplayer" && snake2.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
-
-
+        
+        // Update previous positions for interpolation
+        snake.forEach(seg => { seg.prevX = seg.x; seg.prevY = seg.y; });
         snake.unshift(head1);
+
+
         if(head1.x === food.x && head1.y === food.y){
             score++; scoreDisplay.innerText = score; food = spawnFood();
-            if(mode === "roulette") {
-                speed = Math.max(30, Math.floor(Math.random() * 120));
-                clearInterval(interval); interval = setInterval(loop, speed);
-            }
+            if(mode === "roulette") speed = Math.max(30, Math.floor(Math.random() * 120));
         } else snake.pop();
 
 
-        // Update P2
         if(mode === "multiplayer"){
+            direction2 = nextDir2;
             let head2 = getNextHead(snake2, direction2);
             if(head2.x < 0 || head2.y < 0 || head2.x >= size || head2.y >= size || 
                snake2.some(seg => seg.x === head2.x && seg.y === head2.y) ||
                snake.some(seg => seg.x === head2.x && seg.y === head2.y)) return gameOver();
             
+            snake2.forEach(seg => { seg.prevX = seg.x; seg.prevY = seg.y; });
             snake2.unshift(head2);
             if(head2.x === food.x && head2.y === food.y) food = spawnFood();
             else snake2.pop();
         }
+    }
 
 
-        // Draw
-        ctx.fillStyle = "black"; ctx.fillRect(0, 0, size, size);
-        ctx.fillStyle = "red"; ctx.fillRect(food.x, food.y, box, box);
+    function draw(interp) {
+        ctx.fillStyle = "black"; 
+        ctx.fillRect(0, 0, size, size);
+        
+        // Food
+        ctx.fillStyle = "red"; 
+        ctx.fillRect(food.x, food.y, box, box);
+
+
+        // Snake 1
         ctx.fillStyle = colorPicker.value;
-        snake.forEach(seg => ctx.fillRect(seg.x + 1, seg.y + 1, box - 2, box - 2));
+        drawSnake(snake, interp);
+
+
         if(mode === "multiplayer"){
             ctx.fillStyle = "#00d4ff";
-            snake2.forEach(seg => ctx.fillRect(seg.x + 1, seg.y + 1, box - 2, box - 2));
+            drawSnake(snake2, interp);
         }
     }
 
 
-    function gameOver(){ running = false; clearInterval(interval); document.getElementById("finalScore").innerText = "Final Score: " + score; showScreen("gameOverScreen"); }
-    function backToMenu(){ running = false; clearInterval(interval); showScreen("menu"); }
+    function drawSnake(sArr, interp) {
+        sArr.forEach(seg => {
+            const drawX = seg.prevX + (seg.x - seg.prevX) * interp;
+            const drawY = seg.prevY + (seg.y - seg.prevY) * interp;
+            ctx.fillRect(drawX + 1, drawY + 1, box - 2, box - 2);
+        });
+    }
+
+
+    function gameOver(){ running = false; document.getElementById("finalScore").innerText = "Final Score: " + score; showScreen("gameOverScreen"); }
+    function backToMenu(){ running = false; showScreen("menu"); }
 });
 </script>
 </body>
