@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Snake Smooth</title>
+    <title>Neon Snake Smooth - Survival</title>
     <style>
         body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
         #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); }
@@ -31,6 +31,7 @@
         <div style="display: grid; gap: 10px;">
             <button id="normal">NORMAL MODE</button>
             <button id="endless" style="background: #00d4ff;">ENDLESS MODE</button>
+            <button id="survival" style="background: #ff3131;">SURVIVAL MODE (CHASE)</button>
             <button id="roulette" style="background: #ff00ff;">ROULETTE (CHAOS)</button>
             <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
         </div>
@@ -63,12 +64,13 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const box = 20;
     const size = 400;
-    let snake, snake2, direction, direction2, nextDir, nextDir2, food, score, mode, speed, running = false;
+    let snake, snake2, npcSnake, direction, direction2, nextDir, nextDir2, food, enemyFood, score, mode, speed, running = false;
     let lastTime = 0, moveTimer = 0;
 
 
     document.getElementById("normal").onclick = () => startGame("normal");
     document.getElementById("endless").onclick = () => startGame("endless");
+    document.getElementById("survival").onclick = () => startGame("survival");
     document.getElementById("roulette").onclick = () => startGame("roulette");
     document.getElementById("multi").onclick = () => startGame("multiplayer");
     document.getElementById("restart").onclick = () => startGame(mode);
@@ -91,11 +93,19 @@ document.addEventListener("DOMContentLoaded", function(){
         
         snake = [{x: 200, y: 200, prevX: 200, prevY: 200}];
         direction = nextDir = "RIGHT";
+        npcSnake = null;
+        enemyFood = null;
 
 
         if(mode === "multiplayer"){
             snake2 = [{x: 100, y: 100, prevX: 100, prevY: 100}];
             direction2 = nextDir2 = "RIGHT";
+        }
+
+
+        if(mode === "survival"){
+            npcSnake = [{x: 0, y: 0, prevX: 0, prevY: 0}];
+            enemyFood = spawnFood();
         }
 
 
@@ -146,19 +156,13 @@ document.addEventListener("DOMContentLoaded", function(){
     function gameLoop(currentTime) {
         if (!running) return;
         requestAnimationFrame(gameLoop);
-
-
         const deltaTime = currentTime - lastTime;
         lastTime = currentTime;
         moveTimer += deltaTime;
-
-
         if (moveTimer >= speed) {
             updateLogic();
             moveTimer = 0;
         }
-
-
         draw(moveTimer / speed);
     }
 
@@ -176,7 +180,10 @@ document.addEventListener("DOMContentLoaded", function(){
         
         if(snake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
         
-        // Update previous positions for interpolation
+        // NPC Collision
+        if(mode === "survival" && npcSnake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
+
+
         snake.forEach(seg => { seg.prevX = seg.x; seg.prevY = seg.y; });
         snake.unshift(head1);
 
@@ -185,6 +192,30 @@ document.addEventListener("DOMContentLoaded", function(){
             score++; scoreDisplay.innerText = score; food = spawnFood();
             if(mode === "roulette") speed = Math.max(30, Math.floor(Math.random() * 120));
         } else snake.pop();
+
+
+        // NPC AI Logic
+        if(mode === "survival"){
+            let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y, prevX: npcSnake[0].x, prevY: npcSnake[0].y };
+            // Simple chase logic
+            if(Math.abs(snake[0].x - npcHead.x) > Math.abs(snake[0].y - npcHead.y)) {
+                npcHead.x += (snake[0].x > npcHead.x) ? box : -box;
+            } else {
+                npcHead.y += (snake[0].y > npcHead.y) ? box : -box;
+            }
+            
+            npcSnake.forEach(seg => { seg.prevX = seg.x; seg.prevY = seg.y; });
+            npcSnake.unshift(npcHead);
+
+
+            if(npcHead.x === enemyFood.x && npcHead.y === enemyFood.y){
+                enemyFood = spawnFood();
+            } else {
+                npcSnake.pop();
+            }
+            // If NPC hits Player head
+            if(npcHead.x === snake[0].x && npcHead.y === snake[0].y) return gameOver();
+        }
 
 
         if(mode === "multiplayer"){
@@ -206,12 +237,16 @@ document.addEventListener("DOMContentLoaded", function(){
         ctx.fillStyle = "black"; 
         ctx.fillRect(0, 0, size, size);
         
-        // Food
         ctx.fillStyle = "red"; 
         ctx.fillRect(food.x, food.y, box, box);
 
 
-        // Snake 1
+        if(enemyFood) {
+            ctx.fillStyle = "#ff00ff"; // Purple Enemy Apple
+            ctx.fillRect(enemyFood.x, enemyFood.y, box, box);
+        }
+
+
         ctx.fillStyle = colorPicker.value;
         drawSnake(snake, interp);
 
@@ -219,6 +254,12 @@ document.addEventListener("DOMContentLoaded", function(){
         if(mode === "multiplayer"){
             ctx.fillStyle = "#00d4ff";
             drawSnake(snake2, interp);
+        }
+
+
+        if(mode === "survival"){
+            ctx.fillStyle = "#ff3131"; // Chaser Red
+            drawSnake(npcSnake, interp);
         }
     }
 
