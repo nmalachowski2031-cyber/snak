@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Snake - Survival Edition</title>
+    <title>Neon Snake - Survival Fixed</title>
     <style>
         body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
         #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); }
@@ -68,6 +68,7 @@ document.addEventListener("DOMContentLoaded", function(){
     let lastTime = 0, moveTimer = 0, npcMoveTimer = 0;
 
 
+    // Button Listeners
     document.getElementById("normal").onclick = () => startGame("normal");
     document.getElementById("endless").onclick = () => startGame("endless");
     document.getElementById("survival").onclick = () => startGame("survival");
@@ -94,6 +95,7 @@ document.addEventListener("DOMContentLoaded", function(){
         
         snake = [{x: 200, y: 200, prevX: 200, prevY: 200}];
         direction = nextDir = "RIGHT";
+        
         npcSnake = null;
         enemyFood = null;
 
@@ -144,8 +146,8 @@ document.addEventListener("DOMContentLoaded", function(){
     });
 
 
-    function getNextHead(sArr, dir) {
-        let head = { x: sArr[0].x, y: sArr[0].y, prevX: sArr[0].x, prevY: sArr[0].y };
+    function getNextHead(sHead, dir) {
+        let head = { x: sHead.x, y: sHead.y, prevX: sHead.x, prevY: sHead.y };
         if(dir === "LEFT") head.x -= box;
         if(dir === "RIGHT") head.x += box;
         if(dir === "UP") head.y -= box;
@@ -167,9 +169,9 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        let currentNpcSpeed = speed; // Default fallback
+        let currentNpcSpeed = speed; 
         if(mode === "survival" && npcSnake) {
-            currentNpcSpeed = Math.max(40, (speed * 1.2) - (score * 3)); 
+            currentNpcSpeed = Math.max(40, (speed * 1.1) - (score * 3)); 
             npcMoveTimer += deltaTime;
             if (npcMoveTimer >= currentNpcSpeed) {
                 updateNPCLogic();
@@ -184,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     function updatePlayerLogic() {
         direction = nextDir;
-        let head1 = getNextHead(snake, direction);
+        let head1 = getNextHead(snake[0], direction);
         
         if(mode === "endless") {
             if(head1.x < 0) { head1.x = size - box; head1.prevX = size; } 
@@ -193,8 +195,8 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(head1.y >= size) { head1.y = 0; head1.prevY = -box; }
         } else if (head1.x < 0 || head1.y < 0 || head1.x >= size || head1.y >= size) return gameOver();
         
-        if(snake.some((seg, i) => i !== 0 && seg.x === head1.x && seg.y === head1.y)) return gameOver();
-        if(mode === "survival" && npcSnake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
+        if(snake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
+        if(mode === "survival" && npcSnake && npcSnake.some(seg => seg.x === head1.x && seg.y === head1.y)) return gameOver();
 
 
         snake.forEach(seg => { seg.prevX = seg.x; seg.prevY = seg.y; });
@@ -209,7 +211,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
         if(mode === "multiplayer"){
             direction2 = nextDir2;
-            let head2 = getNextHead(snake2, direction2);
+            let head2 = getNextHead(snake2[0], direction2);
             if(head2.x < 0 || head2.y < 0 || head2.x >= size || head2.y >= size || 
                snake2.some(seg => seg.x === head2.x && seg.y === head2.y) ||
                snake.some(seg => seg.x === head2.x && seg.y === head2.y)) return gameOver();
@@ -223,11 +225,10 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function updateNPCLogic() {
-        let head = npcSnake[0];
-        let npcHead = { x: head.x, y: head.y, prevX: head.x, prevY: head.y };
+        let nHead = npcSnake[0];
+        let npcHead = { x: nHead.x, y: nHead.y, prevX: nHead.x, prevY: nHead.y };
         
-        // Target player if score is high, otherwise target enemy food
-        let target = (score < 3) ? enemyFood : (Math.random() > 0.2 ? snake[0] : enemyFood);
+        let target = (score < 5) ? enemyFood : (Math.random() > 0.2 ? snake[0] : enemyFood);
         
         if(Math.abs(target.x - npcHead.x) > Math.abs(target.y - npcHead.y)) {
             npcHead.x += (target.x > npcHead.x) ? box : -box;
@@ -251,7 +252,7 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    function draw(playerInterp, npcInterp) {
+    function draw(pInterp, nInterp) {
         ctx.fillStyle = "black"; 
         ctx.fillRect(0, 0, size, size);
         
@@ -266,18 +267,18 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         ctx.fillStyle = colorPicker.value;
-        drawSnake(snake, playerInterp);
+        drawSnake(snake, pInterp);
 
 
         if(mode === "multiplayer"){
             ctx.fillStyle = "#00d4ff";
-            drawSnake(snake2, playerInterp);
+            drawSnake(snake2, pInterp);
         }
 
 
         if(mode === "survival" && npcSnake){
             ctx.fillStyle = "#ff3131";
-            drawSnake(npcSnake, npcInterp);
+            drawSnake(npcSnake, nInterp);
         }
     }
 
