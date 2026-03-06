@@ -202,15 +202,55 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
+        // EASIER ENEMY AI
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
-            let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
-            if(enemyFood && Math.random() < 0.25) target = enemyFood;
-            if(Math.abs(target.x - npcHead.x) > Math.abs(target.y - npcHead.y)) npcHead.x += (target.x > npcHead.x) ? box : -box;
-            else npcHead.y += (target.y > npcHead.y) ? box : -box;
+
+
+            // Prefer enemyFood if it exists, else chase player
+            let mainTarget = enemyFood ? enemyFood : snake[0];
+
+
+            // Sometimes move randomly instead of chasing
+            let randomMove = Math.random() < 0.3;
+
+
+            if (randomMove) {
+                // Random small wiggle
+                if (Math.random() < 0.5) {
+                    npcHead.x += (Math.random() < 0.5 ? box : -box);
+                } else {
+                    npcHead.y += (Math.random() < 0.5 ? box : -box);
+                }
+            } else {
+                // Simple, less accurate chase: only one axis per tick
+                if (Math.random() < 0.5) {
+                    if (mainTarget.x !== npcHead.x) {
+                        npcHead.x += (mainTarget.x > npcHead.x) ? box : -box;
+                    } else if (mainTarget.y !== npcHead.y) {
+                        npcHead.y += (mainTarget.y > npcHead.y) ? box : -box;
+                    }
+                } else {
+                    if (mainTarget.y !== npcHead.y) {
+                        npcHead.y += (mainTarget.y > npcHead.y) ? box : -box;
+                    } else if (mainTarget.x !== npcHead.x) {
+                        npcHead.x += (mainTarget.x > npcHead.x) ? box : -box;
+                    }
+                }
+            }
+
+
             if(mode === "chaos" || mode === "endless") wrap(npcHead);
             npcSnake.unshift(npcHead);
-            if(enemyFood && npcHead.x === enemyFood.x && npcHead.y === enemyFood.y) enemyFood = spawnFood(); else npcSnake.pop();
+
+
+            if(enemyFood && npcHead.x === enemyFood.x && npcHead.y === enemyFood.y) {
+                enemyFood = spawnFood();
+            } else {
+                npcSnake.pop();
+            }
+
+
             if(npcHead.x === snake[0].x && npcHead.y === snake[0].y) gameOver();
             if(snake2 && npcHead.x === snake2[0].x && npcHead.y === snake2[0].y) gameOver();
         }
