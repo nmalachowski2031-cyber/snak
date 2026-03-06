@@ -46,7 +46,7 @@
             <button id="survival" style="background: #ff3131;">SURVIVAL MODE</button>
             <button id="roulette" style="background: #ff00ff;">CHAOS MODE</button>
             <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
-            <button id="three" style="background: #ff8800;">(BETA) 3 PLAYER MODE (I-J-K-L)</button>
+            <button id="three" style="background: #ff8800;">3 PLAYER MODE (I-J-K-L)</button>
         </div>
         <p style="font-size: 11px; margin-top: 15px; color: #777;">PERSONAL BEST: <span id="bestScore">0</span></p>
     </div>
@@ -198,6 +198,19 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
+    function handleScoreAndFood() {
+        score++;
+        scoreDisplay.innerText = score;
+        if(score > highScore) {
+            highScore = score;
+            localStorage.setItem("neonSnakeBest", highScore);
+            inGameBest.innerText = highScore;
+        }
+        food = spawnFood();
+        if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+    }
+
+
     function updateLogic() {
         // Snake 1
         if(moveQueue.length > 0) direction = moveQueue.shift();
@@ -208,8 +221,17 @@ document.addEventListener("DOMContentLoaded", function(){
         else if(direction === "DOWN") head.y += box;
 
 
-        if(mode === "chaos" || mode === "endless") wrap(head);
-        else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) return gameOver();
+        // wrap for endless, chaos, multiplayer, threePlayer
+        if(
+            mode === "chaos" || 
+            mode === "endless" || 
+            mode === "multiplayer" || 
+            mode === "threePlayer"
+        ){
+            wrap(head);
+        } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
+            return gameOver();
+        }
         
         if(snake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
         if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
@@ -217,14 +239,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
         snake.unshift(head);
         if(head.x === food.x && head.y === food.y){
-            score++; scoreDisplay.innerText = score;
-            if(score > highScore) {
-                highScore = score;
-                localStorage.setItem("neonSnakeBest", highScore);
-                inGameBest.innerText = highScore;
-            }
-            food = spawnFood();
-            if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+            handleScoreAndFood();
         } else snake.pop();
 
 
@@ -238,8 +253,16 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction2 === "DOWN") h2.y += box;
 
 
-            if(mode === "chaos" || mode === "endless" || mode === "threePlayer") wrap(h2);
-            else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) return gameOver();
+            if(
+                mode === "chaos" || 
+                mode === "endless" || 
+                mode === "multiplayer" || 
+                mode === "threePlayer"
+            ){
+                wrap(h2);
+            } else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) {
+                return gameOver();
+            }
 
 
             if(snake2.some(s => s.x === h2.x && s.y === h2.y) || snake.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
@@ -248,8 +271,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
             snake2.unshift(h2);
             if(h2.x === food.x && h2.y === food.y) {
-                food = spawnFood();
-                if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+                handleScoreAndFood(); // P2 scores
             } else snake2.pop();
         }
 
@@ -264,7 +286,16 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction3 === "DOWN") h3.y += box;
 
 
-            wrap(h3); // same style as endless for boundaries
+            if(
+                mode === "chaos" || 
+                mode === "endless" || 
+                mode === "multiplayer" || 
+                mode === "threePlayer"
+            ){
+                wrap(h3);
+            } else if(h3.x < 0 || h3.y < 0 || h3.x >= size || h3.y >= size) {
+                return gameOver();
+            }
 
 
             if(snake3.some(s => s.x === h3.x && s.y === h3.y) || snake.some(s => s.x === h3.x && s.y === h3.y)) return gameOver();
@@ -273,13 +304,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
             snake3.unshift(h3);
             if(h3.x === food.x && h3.y === food.y) {
-                food = spawnFood();
-                if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+                handleScoreAndFood(); // P3 scores
             } else snake3.pop();
         }
 
 
-        // NPC enemy (use whatever AI version you prefer here; unchanged from your base)
+        // NPC enemy (unchanged)
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
             let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
