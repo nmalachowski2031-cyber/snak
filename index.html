@@ -221,13 +221,13 @@ document.addEventListener("DOMContentLoaded", function(){
         else if(direction === "DOWN") head.y += box;
 
 
-        // wrap for endless, chaos, multiplayer, threePlayer
-        if(
-            mode === "chaos" || 
-            mode === "endless" || 
-            mode === "multiplayer" || 
+        // Wrap for endless, chaos, multiplayer, threePlayer
+        if (
+            mode === "chaos" ||
+            mode === "endless" ||
+            mode === "multiplayer" ||
             mode === "threePlayer"
-        ){
+        ) {
             wrap(head);
         } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
             return gameOver();
@@ -239,7 +239,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
         snake.unshift(head);
         if(head.x === food.x && head.y === food.y){
-            handleScoreAndFood();
+            handleScoreAndFood(); // P1 scoring
         } else snake.pop();
 
 
@@ -253,12 +253,12 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction2 === "DOWN") h2.y += box;
 
 
-            if(
-                mode === "chaos" || 
-                mode === "endless" || 
-                mode === "multiplayer" || 
+            if (
+                mode === "chaos" ||
+                mode === "endless" ||
+                mode === "multiplayer" ||
                 mode === "threePlayer"
-            ){
+            ) {
                 wrap(h2);
             } else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) {
                 return gameOver();
@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
             snake2.unshift(h2);
             if(h2.x === food.x && h2.y === food.y) {
-                handleScoreAndFood(); // P2 scores
+                handleScoreAndFood(); // P2 scoring
             } else snake2.pop();
         }
 
@@ -286,12 +286,12 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction3 === "DOWN") h3.y += box;
 
 
-            if(
-                mode === "chaos" || 
-                mode === "endless" || 
-                mode === "multiplayer" || 
+            if (
+                mode === "chaos" ||
+                mode === "endless" ||
+                mode === "multiplayer" ||
                 mode === "threePlayer"
-            ){
+            ) {
                 wrap(h3);
             } else if(h3.x < 0 || h3.y < 0 || h3.x >= size || h3.y >= size) {
                 return gameOver();
@@ -304,12 +304,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
             snake3.unshift(h3);
             if(h3.x === food.x && h3.y === food.y) {
-                handleScoreAndFood(); // P3 scores
+                handleScoreAndFood(); // P3 scoring
             } else snake3.pop();
         }
 
 
-        // NPC enemy (unchanged)
+        // NPC enemy (unchanged gameplay behavior)
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
             let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
