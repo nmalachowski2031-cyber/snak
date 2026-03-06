@@ -28,9 +28,16 @@
         <h1>🐍 NEON SNAKE</h1>
         <div class="controls">
             <div><label>P1 Color</label><input type="color" id="p1Color" value="#00FF00"></div>
-            <div><label>P2 Color</label><input type="color" id="p2Color" value="#00d4ff"></div>
+            <div><label>Player 2 Color</label><input type="color" id="p2Color" value="#00d4ff"></div>
             <div><label>Enemy Color</label><input type="color" id="enemyColor" value="#FF3131"></div>
-            <div class="full-width"><label>Base Speed</label><select id="difficulty"><option value="150">Chill</option><option value="100" selected>Standard</option><option value="60">Insane</option></select></div>
+            <div class="full-width">
+                <label>Base Speed</label>
+                <select id="difficulty">
+                    <option value="150">Chill</option>
+                    <option value="100" selected>Standard</option>
+                    <option value="60">Insane</option>
+                </select>
+            </div>
         </div>
         <div style="display: grid; gap: 8px;">
             <button id="normal">NORMAL MODE</button>
@@ -68,7 +75,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const scoreDisplay = document.getElementById("score");
     const bestDisplay = document.getElementById("bestScore");
     const inGameBest = document.getElementById("bestInGame");
-    const p1CP = document.getElementById("p1Color"), p2CP = document.getElementById("p2Color"), enemyCP = document.getElementById("enemyColor");
+    const p1CP = document.getElementById("p1Color"),
+          p2CP = document.getElementById("p2Color"),
+          enemyCP = document.getElementById("enemyColor");
     const difficulty = document.getElementById("difficulty");
 
 
