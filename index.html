@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Snake - Classic Grid Edition</title>
+    <title>Neon Snake - True Grid Edition</title>
     <style>
         body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
         #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); }
@@ -32,6 +32,7 @@
         </div>
         <div style="display: grid; gap: 10px;">
             <button id="normal">NORMAL MODE</button>
+            <button id="endless" style="background: #00d4ff;">ENDLESS MODE</button>
             <button id="survival" style="background: #ff3131;">SURVIVAL MODE</button>
             <button id="roulette" style="background: #ff00ff;">CHAOS MODE</button>
             <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
@@ -71,7 +72,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     const box = 20, size = 400;
-    let snake, snake2, npcSnake, direction, direction2, nextDir, nextDir2, food, enemyFood, score, mode, speed, running = false, gameTimeout;
+    let snake, snake2, npcSnake, direction, direction2, moveQueue, moveQueue2, food, enemyFood, score, mode, speed, running = false, gameTimeout;
 
 
     let highScore = localStorage.getItem("neonSnakeBest") || 0;
@@ -79,6 +80,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     document.getElementById("normal").onclick = () => startGame("normal");
+    document.getElementById("endless").onclick = () => startGame("endless");
     document.getElementById("survival").onclick = () => startGame("survival");
     document.getElementById("roulette").onclick = () => startGame("chaos");
     document.getElementById("multi").onclick = () => startGame("multiplayer");
@@ -100,13 +102,15 @@ document.addEventListener("DOMContentLoaded", function(){
         running = true;
         
         snake = [{x: 200, y: 200}];
-        direction = nextDir = "RIGHT";
+        direction = "RIGHT";
+        moveQueue = [];
+        moveQueue2 = [];
         npcSnake = null; enemyFood = null; snake2 = null;
 
 
         if(mode === "multiplayer" || mode === "chaos"){
             snake2 = [{x: 100, y: 100}];
-            direction2 = nextDir2 = "RIGHT";
+            direction2 = "RIGHT";
         }
         if(mode === "survival" || mode === "chaos"){
             npcSnake = [{x: 0, y: 0}];
@@ -130,26 +134,22 @@ document.addEventListener("DOMContentLoaded", function(){
     document.addEventListener("keydown", e => {
         if(!running) return;
         const key = e.key;
-        if(key === "ArrowLeft" && direction !== "RIGHT") nextDir = "LEFT";
-        if(key === "ArrowRight" && direction !== "LEFT") nextDir = "RIGHT";
-        if(key === "ArrowUp" && direction !== "DOWN") nextDir = "UP";
-        if(key === "ArrowDown" && direction !== "UP") nextDir = "DOWN";
+        const lastDir = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : direction;
+        if(key === "ArrowLeft" && lastDir !== "RIGHT") moveQueue.push("LEFT");
+        if(key === "ArrowRight" && lastDir !== "LEFT") moveQueue.push("RIGHT");
+        if(key === "ArrowUp" && lastDir !== "DOWN") moveQueue.push("UP");
+        if(key === "ArrowDown" && lastDir !== "UP") moveQueue.push("DOWN");
 
 
         if(snake2){
             const k = key.toLowerCase();
-            if(k === "a" && direction2 !== "RIGHT") nextDir2 = "LEFT";
-            if(k === "d" && direction2 !== "LEFT") nextDir2 = "RIGHT";
-            if(k === "w" && direction2 !== "DOWN") nextDir2 = "UP";
-            if(k === "s" && direction2 !== "UP") nextDir2 = "DOWN";
+            const lastDir2 = moveQueue2.length > 0 ? moveQueue2[moveQueue2.length - 1] : direction2;
+            if(k === "a" && lastDir2 !== "RIGHT") moveQueue2.push("LEFT");
+            if(k === "d" && lastDir2 !== "LEFT") moveQueue2.push("RIGHT");
+            if(k === "w" && lastDir2 !== "DOWN") moveQueue2.push("UP");
+            if(k === "s" && lastDir2 !== "UP") moveQueue2.push("DOWN");
         }
     });
-
-
-    function wrap(pos) {
-        if(pos.x < 0) pos.x = size - box; else if(pos.x >= size) pos.x = 0;
-        if(pos.y < 0) pos.y = size - box; else if(pos.y >= size) pos.y = 0;
-    }
 
 
     function gameLoop() {
@@ -161,7 +161,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function updateLogic() {
-        direction = nextDir;
+        // P1 Movement
+        if(moveQueue.length > 0) direction = moveQueue.shift();
         let head = { x: snake[0].x, y: snake[0].y };
         if(direction === "LEFT") head.x -= box;
         if(direction === "RIGHT") head.x += box;
@@ -169,8 +170,10 @@ document.addEventListener("DOMContentLoaded", function(){
         if(direction === "DOWN") head.y += box;
 
 
-        if(mode === "chaos" || mode === "endless") wrap(head);
-        else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) return gameOver();
+        if(mode === "chaos" || mode === "endless") {
+            if(head.x < 0) head.x = size - box; else if(head.x >= size) head.x = 0;
+            if(head.y < 0) head.y = size - box; else if(head.y >= size) head.y = 0;
+        } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) return gameOver();
         
         if(snake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
         if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
@@ -185,25 +188,32 @@ document.addEventListener("DOMContentLoaded", function(){
         } else snake.pop();
 
 
+        // P2 Movement
         if(snake2){
-            direction2 = nextDir2;
+            if(moveQueue2.length > 0) direction2 = moveQueue2.shift();
             let h2 = { x: snake2[0].x, y: snake2[0].y };
             if(direction2 === "LEFT") h2.x -= box; if(direction2 === "RIGHT") h2.x += box;
             if(direction2 === "UP") h2.y -= box; if(direction2 === "DOWN") h2.y += box;
-            if(mode === "chaos") wrap(h2);
-            if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size || snake2.some(s => s.x === h2.x && s.y === h2.y) || snake.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
+            if(mode === "chaos" || mode === "endless") {
+                 if(h2.x < 0) h2.x = size - box; else if(h2.x >= size) h2.x = 0;
+                 if(h2.y < 0) h2.y = size - box; else if(h2.y >= size) h2.y = 0;
+            } else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size || snake2.some(s => s.x === h2.x && s.y === h2.y) || snake.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
             snake2.unshift(h2);
-            if(h2.x === food.x && h2.y === food.y) food = spawnFood(); else snake2.pop();
+            if(h2.x === food.x && h2.y === food.y) { food = spawnFood(); if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30); } else snake2.pop();
         }
 
 
+        // NPC AI
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
             let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
             if(enemyFood && Math.random() < 0.2) target = enemyFood;
             if(Math.abs(target.x - npcHead.x) > Math.abs(target.y - npcHead.y)) npcHead.x += (target.x > npcHead.x) ? box : -box;
             else npcHead.y += (target.y > npcHead.y) ? box : -box;
-            if(mode === "chaos") wrap(npcHead);
+            if(mode === "chaos" || mode === "endless") {
+                 if(npcHead.x < 0) npcHead.x = size - box; else if(npcHead.x >= size) npcHead.x = 0;
+                 if(npcHead.y < 0) npcHead.y = size - box; else if(npcHead.y >= size) npcHead.y = 0;
+            }
             npcSnake.unshift(npcHead);
             if(enemyFood && npcHead.x === enemyFood.x && npcHead.y === enemyFood.y) enemyFood = spawnFood(); else npcSnake.pop();
             if(npcHead.x === snake[0].x && npcHead.y === snake[0].y) gameOver();
