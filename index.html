@@ -46,6 +46,7 @@
             <button id="survival" style="background: #ff3131;">SURVIVAL MODE</button>
             <button id="roulette" style="background: #ff00ff;">CHAOS MODE</button>
             <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
+            <!-- BETA removed here -->
             <button id="three" style="background: #ff8800;">3 PLAYER MODE (I-J-K-L)</button>
         </div>
         <p style="font-size: 11px; margin-top: 15px; color: #777;">PERSONAL BEST: <span id="bestScore">0</span></p>
@@ -225,8 +226,8 @@ document.addEventListener("DOMContentLoaded", function(){
         if (
             mode === "chaos" ||
             mode === "endless" ||
-            mode === "multiplayer" ||
-            mode === "threePlayer"
+            mode === "multiplayer" ||      // 2 player
+            mode === "threePlayer"         // 3 player
         ) {
             wrap(head);
         } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
@@ -309,7 +310,7 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // NPC enemy (unchanged gameplay behavior)
+        // NPC enemy (unchanged)
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
             let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
