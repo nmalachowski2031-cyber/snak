@@ -6,18 +6,18 @@
     <title>Neon Snake - Ultimate Custom Grid</title>
     <style>
         body { background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; flex-direction: column; overflow: hidden; }
-        #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 25px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); width: 420px; }
+        #ui-container { text-align: center; background: rgba(255, 255, 255, 0.05); padding: 25px; border-radius: 15px; border: 1px solid #333; backdrop-filter: blur(10px); width: 460px; }
         canvas { background: #000; box-shadow: 0 0 30px rgba(0, 255, 0, 0.2); border: 3px solid lime; border-radius: 5px; }
         .screen { display: none; }
         .active { display: block; }
         h1 { margin-top: 0; text-shadow: 0 0 10px lime; font-size: 24px; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 15px 0; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin: 15px 0; }
         button { padding: 10px; font-size: 13px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; background: lime; color: black; transition: 0.2s; }
         button:hover { filter: brightness(1.2); transform: scale(1.02); }
         select, input[type="color"] { width: 100%; padding: 5px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; cursor: pointer; }
         label { font-size: 9px; color: #aaa; display: block; margin-bottom: 4px; text-align: left; text-transform: uppercase; }
         .score-box { display: flex; justify-content: space-around; margin: 10px 0; }
-        .full-width { grid-column: span 3; }
+        .full-width { grid-column: span 4; }
     </style>
 </head>
 <body>
@@ -28,7 +28,8 @@
         <h1>🐍 NEON SNAKE</h1>
         <div class="controls">
             <div><label>P1 Color</label><input type="color" id="p1Color" value="#00FF00"></div>
-            <div><label>Player 2 Color</label><input type="color" id="p2Color" value="#00d4ff"></div>
+            <div><label>P2 Color</label><input type="color" id="p2Color" value="#00d4ff"></div>
+            <div><label>P3 Color</label><input type="color" id="p3Color" value="#ffcc00"></div>
             <div><label>Enemy Color</label><input type="color" id="enemyColor" value="#FF3131"></div>
             <div class="full-width">
                 <label>Base Speed</label>
@@ -45,6 +46,7 @@
             <button id="survival" style="background: #ff3131;">SURVIVAL MODE</button>
             <button id="roulette" style="background: #ff00ff;">CHAOS MODE</button>
             <button id="multi" style="background: #ffcc00;">2 PLAYER (W-A-S-D)</button>
+            <button id="three" style="background: #ff8800;">(BETA) 3 PLAYER MODE (I-J-K-L)</button>
         </div>
         <p style="font-size: 11px; margin-top: 15px; color: #777;">PERSONAL BEST: <span id="bestScore">0</span></p>
     </div>
@@ -77,12 +79,16 @@ document.addEventListener("DOMContentLoaded", function(){
     const inGameBest = document.getElementById("bestInGame");
     const p1CP = document.getElementById("p1Color"),
           p2CP = document.getElementById("p2Color"),
+          p3CP = document.getElementById("p3Color"),
           enemyCP = document.getElementById("enemyColor");
     const difficulty = document.getElementById("difficulty");
 
 
     const box = 20, size = 400;
-    let snake, snake2, npcSnake, direction, direction2, moveQueue, moveQueue2, food, enemyFood, score, mode, speed, running = false, gameTimeout;
+    let snake, snake2, snake3, npcSnake;
+    let direction, direction2, direction3;
+    let moveQueue, moveQueue2, moveQueue3;
+    let food, enemyFood, score, mode, speed, running = false, gameTimeout;
 
 
     let highScore = localStorage.getItem("neonSnakeBest") || 0;
@@ -94,6 +100,7 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("survival").onclick = () => startGame("survival");
     document.getElementById("roulette").onclick = () => startGame("chaos");
     document.getElementById("multi").onclick = () => startGame("multiplayer");
+    document.getElementById("three").onclick = () => startGame("threePlayer");
     document.getElementById("restart").onclick = () => startGame(mode);
     document.getElementById("menuBtn").onclick = backToMenu;
 
@@ -111,12 +118,19 @@ document.addEventListener("DOMContentLoaded", function(){
         score = 0; running = true;
         
         snake = [{x: 200, y: 200}]; direction = "RIGHT";
-        moveQueue = []; moveQueue2 = [];
-        npcSnake = null; enemyFood = null; snake2 = null;
+        moveQueue = []; moveQueue2 = []; moveQueue3 = [];
+        npcSnake = null; enemyFood = null; snake2 = null; snake3 = null;
 
 
-        if(mode === "multiplayer" || mode === "chaos") { snake2 = [{x: 100, y: 100}]; direction2 = "RIGHT"; }
-        if(mode === "survival" || mode === "chaos") { npcSnake = [{x: 0, y: 0}]; enemyFood = spawnFood(); }
+        if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer") {
+            snake2 = [{x: 100, y: 100}]; direction2 = "RIGHT";
+        }
+        if(mode === "threePlayer") {
+            snake3 = [{x: 300, y: 300}]; direction3 = "RIGHT";
+        }
+        if(mode === "survival" || mode === "chaos") {
+            npcSnake = [{x: 0, y: 0}]; enemyFood = spawnFood();
+        }
 
 
         food = spawnFood();
@@ -127,7 +141,10 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function spawnFood(){
-        return { x: Math.floor(Math.random() * (size / box)) * box, y: Math.floor(Math.random() * (size / box)) * box };
+        return {
+            x: Math.floor(Math.random() * (size / box)) * box,
+            y: Math.floor(Math.random() * (size / box)) * box
+        };
     }
 
 
@@ -135,12 +152,16 @@ document.addEventListener("DOMContentLoaded", function(){
         if(!running) return;
         const key = e.key;
         const lastDir = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : direction;
+
+
+        // Player 1: Arrow keys
         if(key === "ArrowLeft" && lastDir !== "RIGHT") moveQueue.push("LEFT");
         if(key === "ArrowRight" && lastDir !== "LEFT") moveQueue.push("RIGHT");
         if(key === "ArrowUp" && lastDir !== "DOWN") moveQueue.push("UP");
         if(key === "ArrowDown" && lastDir !== "UP") moveQueue.push("DOWN");
 
 
+        // Player 2: WASD
         if(snake2){
             const k = key.toLowerCase();
             const lastDir2 = moveQueue2.length > 0 ? moveQueue2[moveQueue2.length - 1] : direction2;
@@ -148,6 +169,17 @@ document.addEventListener("DOMContentLoaded", function(){
             if(k === "d" && lastDir2 !== "LEFT") moveQueue2.push("RIGHT");
             if(k === "w" && lastDir2 !== "DOWN") moveQueue2.push("UP");
             if(k === "s" && lastDir2 !== "UP") moveQueue2.push("DOWN");
+        }
+
+
+        // Player 3: IJKL
+        if(snake3){
+            const k3 = key.toLowerCase();
+            const lastDir3 = moveQueue3.length > 0 ? moveQueue3[moveQueue3.length - 1] : direction3;
+            if(k3 === "j" && lastDir3 !== "RIGHT") moveQueue3.push("LEFT");
+            if(k3 === "l" && lastDir3 !== "LEFT") moveQueue3.push("RIGHT");
+            if(k3 === "i" && lastDir3 !== "DOWN") moveQueue3.push("UP");
+            if(k3 === "k" && lastDir3 !== "UP") moveQueue3.push("DOWN");
         }
     });
 
@@ -167,10 +199,13 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function updateLogic() {
+        // Snake 1
         if(moveQueue.length > 0) direction = moveQueue.shift();
         let head = { x: snake[0].x, y: snake[0].y };
-        if(direction === "LEFT") head.x -= box; else if(direction === "RIGHT") head.x += box;
-        else if(direction === "UP") head.y -= box; else if(direction === "DOWN") head.y += box;
+        if(direction === "LEFT") head.x -= box;
+        else if(direction === "RIGHT") head.x += box;
+        else if(direction === "UP") head.y -= box;
+        else if(direction === "DOWN") head.y += box;
 
 
         if(mode === "chaos" || mode === "endless") wrap(head);
@@ -183,76 +218,90 @@ document.addEventListener("DOMContentLoaded", function(){
         snake.unshift(head);
         if(head.x === food.x && head.y === food.y){
             score++; scoreDisplay.innerText = score;
-            if(score > highScore) { highScore = score; localStorage.setItem("neonSnakeBest", highScore); inGameBest.innerText = highScore; }
+            if(score > highScore) {
+                highScore = score;
+                localStorage.setItem("neonSnakeBest", highScore);
+                inGameBest.innerText = highScore;
+            }
             food = spawnFood();
             if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
         } else snake.pop();
 
 
+        // Snake 2
         if(snake2){
             if(moveQueue2.length > 0) direction2 = moveQueue2.shift();
             let h2 = { x: snake2[0].x, y: snake2[0].y };
-            if(direction2 === "LEFT") h2.x -= box; else if(direction2 === "RIGHT") h2.x += box;
-            else if(direction2 === "UP") h2.y -= box; else if(direction2 === "DOWN") h2.y += box;
-            if(mode === "chaos" || mode === "endless") wrap(h2);
+            if(direction2 === "LEFT") h2.x -= box;
+            else if(direction2 === "RIGHT") h2.x += box;
+            else if(direction2 === "UP") h2.y -= box;
+            else if(direction2 === "DOWN") h2.y += box;
+
+
+            if(mode === "chaos" || mode === "endless" || mode === "threePlayer") wrap(h2);
             else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) return gameOver();
+
+
             if(snake2.some(s => s.x === h2.x && s.y === h2.y) || snake.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
+            if(snake3 && snake3.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
+
+
             snake2.unshift(h2);
-            if(h2.x === food.x && h2.y === food.y) { food = spawnFood(); if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30); } else snake2.pop();
+            if(h2.x === food.x && h2.y === food.y) {
+                food = spawnFood();
+                if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+            } else snake2.pop();
         }
 
 
-        // EASIER ENEMY AI
+        // Snake 3
+        if(snake3){
+            if(moveQueue3.length > 0) direction3 = moveQueue3.shift();
+            let h3 = { x: snake3[0].x, y: snake3[0].y };
+            if(direction3 === "LEFT") h3.x -= box;
+            else if(direction3 === "RIGHT") h3.x += box;
+            else if(direction3 === "UP") h3.y -= box;
+            else if(direction3 === "DOWN") h3.y += box;
+
+
+            // Use wrapping same as endless/chaos for fairness, but no other rule change
+            wrap(h3);
+
+
+            if(snake3.some(s => s.x === h3.x && s.y === h3.y) || snake.some(s => s.x === h3.x && s.y === h3.y)) return gameOver();
+            if(snake2 && snake2.some(s => s.x === h3.x && s.y === h3.y)) return gameOver();
+
+
+            snake3.unshift(h3);
+            if(h3.x === food.x && h3.y === food.y) {
+                food = spawnFood();
+                if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+            } else snake3.pop();
+        }
+
+
+        // Enemy AI (same as before – if you had modified, keep that logic here)
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
-
-
-            // Prefer enemyFood if it exists, else chase player
-            let mainTarget = enemyFood ? enemyFood : snake[0];
-
-
-            // Sometimes move randomly instead of chasing
-            let randomMove = Math.random() < 0.3;
-
-
-            if (randomMove) {
-                // Random small wiggle
-                if (Math.random() < 0.5) {
-                    npcHead.x += (Math.random() < 0.5 ? box : -box);
-                } else {
-                    npcHead.y += (Math.random() < 0.5 ? box : -box);
-                }
-            } else {
-                // Simple, less accurate chase: only one axis per tick
-                if (Math.random() < 0.5) {
-                    if (mainTarget.x !== npcHead.x) {
-                        npcHead.x += (mainTarget.x > npcHead.x) ? box : -box;
-                    } else if (mainTarget.y !== npcHead.y) {
-                        npcHead.y += (mainTarget.y > npcHead.y) ? box : -box;
-                    }
-                } else {
-                    if (mainTarget.y !== npcHead.y) {
-                        npcHead.y += (mainTarget.y > npcHead.y) ? box : -box;
-                    } else if (mainTarget.x !== npcHead.x) {
-                        npcHead.x += (mainTarget.x > npcHead.x) ? box : -box;
-                    }
-                }
-            }
+            let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
+            if(enemyFood && Math.random() < 0.25) target = enemyFood;
+            if(Math.abs(target.x - npcHead.x) > Math.abs(target.y - npcHead.y))
+                npcHead.x += (target.x > npcHead.x) ? box : -box;
+            else
+                npcHead.y += (target.y > npcHead.y) ? box : -box;
 
 
             if(mode === "chaos" || mode === "endless") wrap(npcHead);
             npcSnake.unshift(npcHead);
-
-
-            if(enemyFood && npcHead.x === enemyFood.x && npcHead.y === enemyFood.y) {
+            if(enemyFood && npcHead.x === enemyFood.x && npcHead.y === enemyFood.y)
                 enemyFood = spawnFood();
-            } else {
+            else
                 npcSnake.pop();
-            }
 
 
             if(npcHead.x === snake[0].x && npcHead.y === snake[0].y) gameOver();
             if(snake2 && npcHead.x === snake2[0].x && npcHead.y === snake2[0].y) gameOver();
+            if(snake3 && npcHead.x === snake3[0].x && npcHead.y === snake3[0].y) gameOver();
         }
     }
 
@@ -261,14 +310,41 @@ document.addEventListener("DOMContentLoaded", function(){
         ctx.fillStyle = "black"; ctx.fillRect(0, 0, size, size);
         ctx.fillStyle = "red"; ctx.fillRect(food.x, food.y, box, box);
         if(enemyFood) { ctx.fillStyle = "#ff00ff"; ctx.fillRect(enemyFood.x, enemyFood.y, box, box); }
-        ctx.fillStyle = p1CP.value; snake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
-        if(snake2){ ctx.fillStyle = p2CP.value; snake2.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2)); }
-        if(npcSnake){ ctx.fillStyle = enemyCP.value; npcSnake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2)); }
+
+
+        ctx.fillStyle = p1CP.value;
+        snake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+
+
+        if(snake2){
+            ctx.fillStyle = p2CP.value;
+            snake2.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+        }
+
+
+        if(snake3){
+            ctx.fillStyle = p3CP.value;
+            snake3.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+        }
+
+
+        if(npcSnake){
+            ctx.fillStyle = enemyCP.value;
+            npcSnake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+        }
     }
 
 
-    function gameOver(){ running = false; document.getElementById("finalScore").innerText = "Final Score: " + score; showScreen("gameOverScreen"); }
-    function backToMenu(){ running = false; bestDisplay.innerText = highScore; showScreen("menu"); }
+    function gameOver(){
+        running = false;
+        document.getElementById("finalScore").innerText = "Final Score: " + score;
+        showScreen("gameOverScreen");
+    }
+    function backToMenu(){
+        running = false;
+        bestDisplay.innerText = highScore;
+        showScreen("menu");
+    }
 });
 </script>
 </body>
