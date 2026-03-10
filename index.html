@@ -18,6 +18,36 @@
         label { font-size: 9px; color: #aaa; display: block; margin-bottom: 4px; text-align: left; text-transform: uppercase; }
         .score-box { display: flex; justify-content: space-around; margin: 10px 0; }
         .full-width { grid-column: span 3; }
+
+
+        /* Pause overlay */
+        #pauseScreen {
+            position: absolute;
+            inset: 0;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #pauseScreenInner {
+            background: rgba(0,0,0,0.85);
+            border-radius: 12px;
+            padding: 20px 25px;
+            border: 1px solid #444;
+            min-width: 260px;
+        }
+        #pauseScreen h2 {
+            margin: 0 0 15px;
+            font-size: 20px;
+        }
+        #pauseScreen p {
+            margin: 0 0 15px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        #pauseButtons {
+            display: grid;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -52,13 +82,26 @@
     </div>
 
 
-    <div id="gameScreen" class="screen">
+    <div id="gameScreen" class="screen" style="position: relative;">
         <canvas id="game" width="400" height="400"></canvas>
         <div class="score-box">
             <h3>SCORE: <span id="score">0</span></h3>
             <h3>BEST: <span id="bestInGame">0</span></h3>
         </div>
-        <p style="font-size: 11px; margin-top: 5px; color: #777;">Press ESC to pause/resume</p>
+        <p style="font-size: 11px; margin-top: 5px; color: #777;">Press ESC to pause</p>
+
+
+        <!-- Pause overlay -->
+        <div id="pauseScreen">
+            <div id="pauseScreenInner">
+                <h2>Paused</h2>
+                <p>Press ESC or click resume to continue.</p>
+                <div id="pauseButtons">
+                    <button id="resumeBtn" style="background:#00d4ff;">RESUME</button>
+                    <button id="pauseMenuBtn" style="background:#555; color:white;">MAIN MENU</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -85,6 +128,11 @@ document.addEventListener("DOMContentLoaded", function(){
     const difficulty = document.getElementById("difficulty");
 
 
+    const pauseScreen = document.getElementById("pauseScreen");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const pauseMenuBtn = document.getElementById("pauseMenuBtn");
+
+
     const box = 20, size = 400;
     let snake, snake2, snake3, npcSnake;
     let direction, direction2, direction3;
@@ -92,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function(){
     let food, enemyFood, score, mode, speed, running = false, gameTimeout;
 
 
-    let paused = false; // pause flag
+    let paused = false;
 
 
     let highScore = localStorage.getItem("neonSnakeBest") || 0;
@@ -109,9 +157,31 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("menuBtn").onclick = backToMenu;
 
 
+    // Pause menu buttons
+    resumeBtn.onclick = () => {
+        if (paused) togglePause();
+    };
+    pauseMenuBtn.onclick = () => {
+        // leave to main menu from pause
+        running = false;
+        paused = false;
+        if (gameTimeout) clearTimeout(gameTimeout);
+        hidePauseScreen();
+        backToMenu();
+    };
+
+
     function showScreen(id){
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
+    }
+
+
+    function showPauseScreen() {
+        pauseScreen.style.display = "flex";
+    }
+    function hidePauseScreen() {
+        pauseScreen.style.display = "none";
     }
 
 
@@ -122,6 +192,7 @@ document.addEventListener("DOMContentLoaded", function(){
         score = 0;
         running = true;
         paused = false;
+        hidePauseScreen();
 
 
         snake = [{x: 200, y: 200}]; direction = "RIGHT";
@@ -155,23 +226,21 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    // togglePause function
     function togglePause() {
         if (!running) return;
         paused = !paused;
         if (paused) {
             clearTimeout(gameTimeout);
+            showPauseScreen();
         } else {
+            hidePauseScreen();
             gameLoop();
         }
     }
 
 
     document.addEventListener("keydown", e => {
-        console.log("Key pressed:", e.key, e.code); // debug
-
-
-        // ESC pauses/resumes (handles different browsers)
+        // ESC pauses/resumes
         if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
             e.preventDefault();
             togglePause();
@@ -255,7 +324,6 @@ document.addEventListener("DOMContentLoaded", function(){
         else if(direction === "DOWN") head.y += box;
 
 
-        // Wrap for endless, chaos, multiplayer, threePlayer
         if (
             mode === "chaos" ||
             mode === "endless" ||
@@ -401,12 +469,15 @@ document.addEventListener("DOMContentLoaded", function(){
     function gameOver(){
         running = false;
         paused = false;
+        hidePauseScreen();
         document.getElementById("finalScore").innerText = "Final Score: " + score;
         showScreen("gameOverScreen");
     }
     function backToMenu(){
         running = false;
         paused = false;
+        if (gameTimeout) clearTimeout(gameTimeout);
+        hidePauseScreen();
         bestDisplay.innerText = highScore;
         showScreen("menu");
     }
