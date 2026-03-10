@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", function(){
     let food, enemyFood, score, mode, speed, running = false, gameTimeout;
 
 
-    let paused = false; // NEW: pause flag
+    let paused = false; // pause flag
 
 
     let highScore = localStorage.getItem("neonSnakeBest") || 0;
@@ -155,9 +155,9 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    // NEW: togglePause function
+    // togglePause function
     function togglePause() {
-        if (!running) return; // do not pause if game not running
+        if (!running) return;
         paused = !paused;
         if (paused) {
             clearTimeout(gameTimeout);
@@ -168,11 +168,12 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     document.addEventListener("keydown", e => {
-        const key = e.key;
+        console.log("Key pressed:", e.key, e.code); // debug
 
 
-        // ESC pauses/resumes
-        if (key === "Escape") {
+        // ESC pauses/resumes (handles different browsers)
+        if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
+            e.preventDefault();
             togglePause();
             return;
         }
@@ -181,6 +182,7 @@ document.addEventListener("DOMContentLoaded", function(){
         if(!running || paused) return;
 
 
+        const key = e.key;
         const lastDir = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : direction;
 
 
