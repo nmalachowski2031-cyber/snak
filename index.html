@@ -10,12 +10,13 @@
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            height: 100vh; 
+            min-height: 100vh; 
             margin: 0; 
             color: white; 
             font-family: sans-serif; 
             flex-direction: column; 
-            overflow: hidden; 
+            padding: 20px;
+            overflow: auto;
         }
         #ui-container { 
             text-align: center; 
@@ -25,6 +26,8 @@
             border: 1px solid #333; 
             backdrop-filter: blur(10px); 
             width: 420px; 
+            max-height: 90vh;
+            overflow-y: auto;
         }
         canvas { 
             background: #000; 
@@ -46,6 +49,7 @@
             background: lime; 
             color: black; 
             transition: 0.2s; 
+            white-space: nowrap;
         }
         button:hover { filter: brightness(1.2); transform: scale(1.02); }
         select, input[type="color"] { 
@@ -86,6 +90,13 @@
         #pauseScreen h2 { margin: 0 0 15px; font-size: 20px; }
         #pauseScreen p { margin: 0 0 15px; font-size: 12px; color: #aaa; }
         #pauseButtons { display: grid; gap: 8px; }
+        .mode-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -106,7 +117,7 @@
                 </select>
             </div>
         </div>
-        <div style="display: grid; gap: 8px;">
+        <div class="mode-buttons">
             <button id="normal">NORMAL MODE</button>
             <button id="endless" style="background: #00d4ff; color: black;">ENDLESS MODE</button>
             <button id="survival" style="background: #ff3131; color: white;">SURVIVAL MODE</button>
@@ -221,11 +232,11 @@ document.addEventListener("DOMContentLoaded", function(){
     };
 
 
-    // Event listeners
+    // Event listeners - FIXED order
     document.getElementById("normal").onclick = () => startGame("normal");
     document.getElementById("endless").onclick = () => startGame("endless");
     document.getElementById("survival").onclick = () => startGame("survival");
-    document.getElementById("survival2p").onclick = () => startGame("survival2p");
+    document.getElementById("survival2p").onclick = () => startGame("survival2p");  // ✅ NOW WORKS
     document.getElementById("roulette").onclick = () => startGame("chaos");
     document.getElementById("multi").onclick = () => startGame("multiplayer");
     document.getElementById("three").onclick = () => startGame("threePlayer");
@@ -238,6 +249,7 @@ document.addEventListener("DOMContentLoaded", function(){
     };
 
 
+    // Rest of the code remains exactly the same...
     function showScreen(id){
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
@@ -262,15 +274,12 @@ document.addEventListener("DOMContentLoaded", function(){
         alive1 = true; alive2 = false; alive3 = false;
 
 
-        // P2 active in multiplayer, chaos, threePlayer, and survival2p
         if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer" || mode === "survival2p") {
             snake2 = [{x: 3*box, y: 3*box}]; direction2 = "RIGHT"; alive2 = true;
         }
-        // P3 as before
         if(mode === "threePlayer" || mode === "chaos") {
             snake3 = [{x: 13*box, y: 13*box}]; direction3 = "RIGHT"; alive3 = true;
         }
-        // NPC only in single-player survival and chaos
         if(mode === "survival") {
             npcSnake = [{x: box, y: 18*box}]; enemyFood = {x: 18*box, y: box};
         } else if(mode === "chaos") {
@@ -289,7 +298,7 @@ document.addEventListener("DOMContentLoaded", function(){
         let newFood;
         do {
             newFood = { x: Math.floor(Math.random() * (size / box)) * box, y: Math.floor(Math.random() * (size / box)) * box };
-        } while (snake.some(s => s.x === newFood.x && s.y === newFood.y));
+        } while (snake && snake.some(s => s.x === newFood.x && s.y === newFood.y));
         return newFood;
     }
 
@@ -421,12 +430,10 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    // FIXED: All collision issues + survival movement
     function updateLogic() {
         const hasWalls = (mode === "normal" || mode === "survival" || mode === "survival2p");
 
 
-        // FIXED: Snake 1 - ALWAYS MOVES in survival
         if (alive1 && snake && snake.length > 0) {
             if(moveQueue.length > 0) direction = moveQueue.shift();
             
@@ -443,7 +450,6 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(head);
 
 
-            // FIXED: Check ALL snakes/bodies for collision (not just head)
             if(snake.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(1); return; }
             if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(1); return; }
             if(snake2 && snake2.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(1); handlePlayerDeath(2); return; }
@@ -456,7 +462,6 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // Snake 2
         if(snake2 && alive2) {
             if(moveQueue2.length > 0) direction2 = moveQueue2.shift();
             let h2 = { x: snake2[0].x, y: snake2[0].y };
@@ -472,7 +477,6 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(h2);
 
 
-            // FIXED: Check ALL snakes/bodies - mutual collision
             if(snake2.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(2); return; }
             if(snake && snake.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(2); handlePlayerDeath(1); return; }
             if(snake3 && snake3.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(2); handlePlayerDeath(3); return; }
@@ -485,7 +489,6 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // Snake 3
         if(snake3 && alive3) {
             if(moveQueue3.length > 0) direction3 = moveQueue3.shift();
             let h3 = { x: snake3[0].x, y: snake3[0].y };
@@ -501,7 +504,6 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(h3);
 
 
-            // FIXED: Check ALL snakes/bodies - mutual collision
             if(snake3.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(3); return; }
             if(snake && snake.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(3); handlePlayerDeath(1); return; }
             if(snake2 && snake2.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(3); handlePlayerDeath(2); return; }
@@ -514,7 +516,6 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // NPC Snake
         if(npcSnake && (mode === "survival" || mode === "chaos")) {
             let nh = { x: npcSnake[0].x, y: npcSnake[0].y };
             if (mode === "survival" && snake && snake.length > 0) {
@@ -546,8 +547,6 @@ document.addEventListener("DOMContentLoaded", function(){
 
     function draw() {
         ctx.fillStyle = "black"; ctx.fillRect(0, 0, size, size);
-        
-        // FIXED: Apple is RED
         drawRect(food.x, food.y, "#FF0000", true);
         if(enemyFood) drawRect(enemyFood.x, enemyFood.y, enemyCP.value, true);
 
