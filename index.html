@@ -163,7 +163,8 @@
             <button id="three">3P CHAOS</button>
         </div>
         <p id="coinText" style="font-size: 11px; margin: 8px 0; color: #ffd700;">COINS: 0</p>
-        <button id="hatToggle" style="font-size:8px;padding:4px;">TOP HAT (10)</button>
+        <button id="hatToggle" style="font-size:8px;padding:4px;">FEDORA (10)</button>
+        <button id="goldToggle" style="font-size:8px;padding:4px;background:#ffd700;color:black;">GOLD (5)</button>
         <p style="font-size: 11px; margin: 8px 0; color: #777;">BEST: <span id="bestScore">0</span></p>
     </div>
 
@@ -214,6 +215,7 @@ document.addEventListener("DOMContentLoaded", function(){
     const inGameBest = document.getElementById("bestInGame");
     const coinText = document.getElementById("coinText");
     const hatToggle = document.getElementById("hatToggle");
+    const goldToggle = document.getElementById("goldToggle");
     const p1CP = document.getElementById("p1Color");
     const p2CP = document.getElementById("p2Color");
     const p3CP = document.getElementById("p3Color");
@@ -230,7 +232,8 @@ document.addEventListener("DOMContentLoaded", function(){
     let paused = false;
     let alive1 = true, alive2 = false, alive3 = false;
     let coins = parseInt(localStorage.getItem("neonSnakeCoins") || "0");
-    let equipTopHat = localStorage.getItem("neonSnakeTopHat") === "true";
+    let equipFedora = localStorage.getItem("neonSnakeFedora") === "true";
+    let equipGold = localStorage.getItem("neonSnakeGold") === "true";
     let highScore = parseInt(localStorage.getItem("neonSnakeBest") || "0");
     let winner = "";
 
@@ -238,15 +241,29 @@ document.addEventListener("DOMContentLoaded", function(){
     coinText.innerText = "COINS: " + coins;
     bestDisplay.innerText = highScore;
     updateHatButton();
+    updateGoldButton();
 
 
     function updateHatButton() {
-        if (equipTopHat) {
-            hatToggle.innerText = "HAT ON ✓";
+        if (equipFedora) {
+            hatToggle.innerText = "FEDORA ON ✓";
             hatToggle.style.background = "#ffd700";
         } else {
-            hatToggle.innerText = "TOP HAT (10)";
+            hatToggle.innerText = "FEDORA (10)";
             hatToggle.style.background = "#ff00ff";
+        }
+    }
+
+
+    function updateGoldButton() {
+        if (equipGold) {
+            goldToggle.innerText = "GOLD ON ✓";
+            goldToggle.style.background = "#ffd700";
+            goldToggle.style.color = "black";
+        } else {
+            goldToggle.innerText = "GOLD (5)";
+            goldToggle.style.background = "#daa520";
+            goldToggle.style.color = "black";
         }
     }
 
@@ -259,21 +276,40 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     hatToggle.onclick = () => {
-        if (equipTopHat) {
-            equipTopHat = false;
+        if (equipFedora) {
+            equipFedora = false;
         } else {
             if (coins >= 10) {
                 coins -= 10;
                 localStorage.setItem("neonSnakeCoins", coins);
                 coinText.innerText = "COINS: " + coins;
-                equipTopHat = true;
+                equipFedora = true;
             } else {
                 alert("Need 10 coins!");
                 return;
             }
         }
-        localStorage.setItem("neonSnakeTopHat", equipTopHat);
+        localStorage.setItem("neonSnakeFedora", equipFedora);
         updateHatButton();
+    };
+
+
+    goldToggle.onclick = () => {
+        if (equipGold) {
+            equipGold = false;
+        } else {
+            if (coins >= 5) {
+                coins -= 5;
+                localStorage.setItem("neonSnakeCoins", coins);
+                coinText.innerText = "COINS: " + coins;
+                equipGold = true;
+            } else {
+                alert("Need 5 coins!");
+                return;
+            }
+        }
+        localStorage.setItem("neonSnakeGold", equipGold);
+        updateGoldButton();
     };
 
 
@@ -359,9 +395,10 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function drawSnake(snakeArray, color) {
+        const useGold = equipGold;
         for(let i = 1; i < snakeArray.length; i++) {
             const alpha = Math.max(0.2, 1 - (i * 0.03));
-            const trailColor = adjustBrightness(color, 0.3 + (alpha * 0.7));
+            const trailColor = useGold ? adjustBrightness("#FFD700", 0.3 + (alpha * 0.7)) : adjustBrightness(color, 0.3 + (alpha * 0.7));
             ctx.save(); 
             ctx.globalAlpha = alpha; 
             ctx.shadowColor = trailColor; 
@@ -371,7 +408,7 @@ document.addEventListener("DOMContentLoaded", function(){
         }
         if (snakeArray.length > 0) {
             const head = snakeArray[0];
-            if (equipTopHat) {
+            if (equipFedora) {
                 ctx.save(); 
                 ctx.shadowColor = "#FFFFFF"; 
                 ctx.shadowBlur = 25;
@@ -381,9 +418,10 @@ document.addEventListener("DOMContentLoaded", function(){
                 ctx.shadowBlur = 0; 
                 ctx.restore();
             }
-            ctx.shadowColor = color; 
+            const headColor = useGold ? "#FFD700" : color;
+            ctx.shadowColor = headColor; 
             ctx.shadowBlur = 20;
-            drawRect(head.x, head.y, color, true);
+            drawRect(head.x, head.y, headColor, true);
         }
     }
 
@@ -473,6 +511,7 @@ document.addEventListener("DOMContentLoaded", function(){
         if (playerIndex === 3 && alive3) { alive3 = false; snake3 = []; }
 
 
+        // Check win conditions for multiplayer modes
         if (mode === "slither") {
             if (playerIndex === 1 && alive2) {
                 winner = "PLAYER 2 WINS! 🏆";
@@ -480,6 +519,23 @@ document.addEventListener("DOMContentLoaded", function(){
                 winner = "PLAYER 1 WINS! 🏆";
             }
             if (winner) {
+                document.getElementById("winnerText").innerText = winner;
+                document.getElementById("winScore").innerText = `SCORE: ${score}`;
+                showScreen("winScreen");
+                running = false;
+                return;
+            }
+        } else if (mode === "multiplayer" || mode === "threePlayer") {
+            // Continue until only 1 player remains
+            if (!alive1 && !alive2 && !alive3) {
+                gameOver();
+                return;
+            }
+            // If only 1 player left, they win
+            if ((alive1 && !alive2 && !alive3) || (!alive1 && alive2 && !alive3) || (!alive1 && !alive2 && alive3)) {
+                if (alive1) winner = "PLAYER 1 WINS! 🏆";
+                else if (alive2) winner = "PLAYER 2 WINS! 🏆";
+                else if (alive3) winner = "PLAYER 3 WINS! 🏆";
                 document.getElementById("winnerText").innerText = winner;
                 document.getElementById("winScore").innerText = `SCORE: ${score}`;
                 showScreen("winScreen");
@@ -502,8 +558,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function updateLogic() {
-        // FIXED: Slither now wraps like endless (removed from hasWalls check)
         const hasWalls = (mode === "normal" || mode === "survival");
+        const isMultiplayer = (mode === "multiplayer" || mode === "threePlayer");
 
 
         // Player 1
@@ -522,13 +578,17 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(head);
 
 
+            // Collision detection
             if(snake.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(1); return; }
             if(npcSnake.length > 0 && npcSnake.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(1); return; }
             if(snake2.length > 0 && snake2.some(s => s.x === head.x && s.y === head.y)) { 
                 handlePlayerDeath(2, 1); 
                 return; 
             }
-            if(snake3.length > 0 && snake3.some(s => s.x === head.x && s.y === head.y)) { handlePlayerDeath(3, 1); return; }
+            if(snake3.length > 0 && snake3.some(s => s.x === head.x && s.y === head.y)) { 
+                handlePlayerDeath(3, 1); 
+                return; 
+            }
 
 
             snake.unshift(head);
@@ -553,12 +613,16 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(h2);
 
 
+            // Enhanced collision for multiplayer - hit ANY part of other snakes
             if(snake2.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(2); return; }
             if(snake.length > 0 && snake.some(s => s.x === h2.x && s.y === h2.y)) { 
-                handlePlayerDeath(1, 2); 
+                handlePlayerDeath(2, 1); 
                 return; 
             }
-            if(snake3.length > 0 && snake3.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(3, 2); return; }
+            if(snake3.length > 0 && snake3.some(s => s.x === h2.x && s.y === h2.y)) { 
+                handlePlayerDeath(2, 3); 
+                return; 
+            }
             if(npcSnake.length > 0 && npcSnake.some(s => s.x === h2.x && s.y === h2.y)) { handlePlayerDeath(2); return; }
 
 
@@ -584,9 +648,16 @@ document.addEventListener("DOMContentLoaded", function(){
             if (!hasWalls) wrap(h3);
 
 
+            // Enhanced collision for multiplayer - hit ANY part of other snakes
             if(snake3.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(3); return; }
-            if(snake.length > 0 && snake.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(1, 3); return; }
-            if(snake2.length > 0 && snake2.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(2, 3); return; }
+            if(snake.length > 0 && snake.some(s => s.x === h3.x && s.y === h3.y)) { 
+                handlePlayerDeath(3, 1); 
+                return; 
+            }
+            if(snake2.length > 0 && snake2.some(s => s.x === h3.x && s.y === h3.y)) { 
+                handlePlayerDeath(3, 2); 
+                return; 
+            }
             if(npcSnake.length > 0 && npcSnake.some(s => s.x === h3.x && s.y === h3.y)) { handlePlayerDeath(3); return; }
 
 
