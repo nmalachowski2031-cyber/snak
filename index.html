@@ -110,6 +110,7 @@
             <button id="normal">NORMAL MODE</button>
             <button id="endless" style="background: #00d4ff; color: black;">ENDLESS MODE</button>
             <button id="survival" style="background: #ff3131; color: white;">SURVIVAL MODE</button>
+            <button id="survival2p" style="background: #ff8800; color: white;">2P SURVIVAL (W-A-S-D)</button>
             <button id="roulette" style="background: #ff00ff; color: black;">CHAOS MODE</button>
             <button id="multi" style="background: #ffcc00; color: black;">2 PLAYER (W-A-S-D)</button>
             <button id="three" style="background: #ff8800; color: black;">3 PLAYER MODE (I-J-K-L)</button>
@@ -224,6 +225,7 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("normal").onclick = () => startGame("normal");
     document.getElementById("endless").onclick = () => startGame("endless");
     document.getElementById("survival").onclick = () => startGame("survival");
+    document.getElementById("survival2p").onclick = () => startGame("survival2p");
     document.getElementById("roulette").onclick = () => startGame("chaos");
     document.getElementById("multi").onclick = () => startGame("multiplayer");
     document.getElementById("three").onclick = () => startGame("threePlayer");
@@ -256,15 +258,19 @@ document.addEventListener("DOMContentLoaded", function(){
 
         snake = [{x: 5*box, y: 5*box}]; direction = "RIGHT"; moveQueue = [];
         snake2 = null; snake3 = null; npcSnake = null; enemyFood = null;
+        moveQueue2 = []; moveQueue3 = [];
         alive1 = true; alive2 = false; alive3 = false;
 
 
-        if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer") {
+        // P2 active in multiplayer, chaos, threePlayer, and survival2p
+        if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer" || mode === "survival2p") {
             snake2 = [{x: 3*box, y: 3*box}]; direction2 = "RIGHT"; alive2 = true;
         }
+        // P3 as before
         if(mode === "threePlayer" || mode === "chaos") {
             snake3 = [{x: 13*box, y: 13*box}]; direction3 = "RIGHT"; alive3 = true;
         }
+        // NPC only in single-player survival and chaos
         if(mode === "survival") {
             npcSnake = [{x: box, y: 18*box}]; enemyFood = {x: 18*box, y: box};
         } else if(mode === "chaos") {
@@ -403,7 +409,7 @@ document.addEventListener("DOMContentLoaded", function(){
         if (playerIndex === 3 && alive3) { alive3 = false; snake3 = null; }
 
 
-        if (mode === "normal" || mode === "endless" || mode === "survival") gameOver();
+        if (mode === "normal" || mode === "endless" || mode === "survival" || mode === "survival2p") gameOver();
         else if (!alive1 && !alive2 && !alive3) gameOver();
     }
 
@@ -417,7 +423,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     // FIXED: All collision issues + survival movement
     function updateLogic() {
-        const hasWalls = (mode === "normal" || mode === "survival");
+        const hasWalls = (mode === "normal" || mode === "survival" || mode === "survival2p");
 
 
         // FIXED: Snake 1 - ALWAYS MOVES in survival
