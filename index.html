@@ -143,6 +143,11 @@ document.addEventListener("DOMContentLoaded", function(){
     let paused = false;
 
 
+    // Chaos bombs and alive flags
+    let bombs = [];
+    let alive1, alive2, alive3;
+
+
     let highScore = localStorage.getItem("neonSnakeBest") || 0;
     bestDisplay.innerText = highScore;
 
@@ -162,7 +167,6 @@ document.addEventListener("DOMContentLoaded", function(){
         if (paused) togglePause();
     };
     pauseMenuBtn.onclick = () => {
-        // leave to main menu from pause
         running = false;
         paused = false;
         if (gameTimeout) clearTimeout(gameTimeout);
@@ -188,7 +192,16 @@ document.addEventListener("DOMContentLoaded", function(){
     function startGame(selectedMode){
         if(gameTimeout) clearTimeout(gameTimeout);
         mode = selectedMode;
-        speed = parseInt(difficulty.value);
+
+
+        // Chaos always uses insane speed
+        if (mode === "chaos") {
+            speed = 60;
+        } else {
+            speed = parseInt(difficulty.value);
+        }
+
+
         score = 0;
         running = true;
         paused = false;
@@ -200,11 +213,18 @@ document.addEventListener("DOMContentLoaded", function(){
         npcSnake = null; enemyFood = null; snake2 = null; snake3 = null;
 
 
+        alive1 = true;
+        alive2 = false;
+        alive3 = false;
+
+
         if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer") {
             snake2 = [{x: 100, y: 100}]; direction2 = "RIGHT";
+            alive2 = true;
         }
-        if(mode === "threePlayer") {
+        if(mode === "threePlayer" || mode === "chaos") {
             snake3 = [{x: 300, y: 300}]; direction3 = "RIGHT";
+            alive3 = true;
         }
         if(mode === "survival" || mode === "chaos") {
             npcSnake = [{x: 0, y: 0}]; enemyFood = spawnFood();
@@ -212,6 +232,16 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         food = spawnFood();
+
+
+        bombs = [];
+        if (mode === "chaos") {
+            for (let i = 0; i < 4; i++) {
+                bombs.push(spawnFood());
+            }
+        }
+
+
         scoreDisplay.innerText = score; inGameBest.innerText = highScore;
         showScreen("gameScreen");
         gameLoop();
@@ -263,7 +293,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         // Player 2: WASD
-        if(snake2){
+        if(snake2 && alive2){
             const k = key.toLowerCase();
             const lastDir2 = moveQueue2.length > 0 ? moveQueue2[moveQueue2.length - 1] : direction2;
             if(k === "a" && lastDir2 !== "RIGHT") moveQueue2.push("LEFT");
@@ -274,7 +304,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         // Player 3: IJKL
-        if(snake3){
+        if(snake3 && alive3){
             const k3 = key.toLowerCase();
             const lastDir3 = moveQueue3.length > 0 ? moveQueue3[moveQueue3.length - 1] : direction3;
             if(k3 === "j" && lastDir3 !== "RIGHT") moveQueue3.push("LEFT");
@@ -310,43 +340,95 @@ document.addEventListener("DOMContentLoaded", function(){
             inGameBest.innerText = highScore;
         }
         food = spawnFood();
-        if(mode === "chaos") speed = Math.max(40, Math.floor(Math.random() * 100) + 30);
+        if(mode === "chaos") speed = 60; // keep insane speed for chaos
+    }
+
+
+    // Bomb helpers
+    function hitsBomb(pos) {
+        if (mode !== "chaos") return false;
+        return bombs.some(b => b.x === pos.x && b.y === pos.y);
+    }
+
+
+    function handlePlayerDeath(playerIndex) {
+        if (playerIndex === 1 && alive1) {
+            alive1 = false;
+            snake = [];
+        }
+        if (playerIndex === 2 && alive2) {
+            alive2 = false;
+            snake2 = null;
+        }
+        if (playerIndex === 3 && alive3) {
+            alive3 = false;
+            snake3 = null;
+        }
+
+
+        // Single-player style modes end immediately
+        if (mode === "normal" || mode === "endless" || mode === "survival") {
+            gameOver();
+            return;
+        }
+
+
+        // Multiplayer / chaos – end only when all are dead
+        if (!alive1 && !alive2 && !alive3) {
+            gameOver();
+        }
     }
 
 
     function updateLogic() {
         // Snake 1
-        if(moveQueue.length > 0) direction = moveQueue.shift();
-        let head = { x: snake[0].x, y: snake[0].y };
-        if(direction === "LEFT") head.x -= box;
-        else if(direction === "RIGHT") head.x += box;
-        else if(direction === "UP") head.y -= box;
-        else if(direction === "DOWN") head.y += box;
+        if (alive1 && snake.length > 0) {
+            if(moveQueue.length > 0) direction = moveQueue.shift();
+            let head = { x: snake[0].x, y: snake[0].y };
+            if(direction === "LEFT") head.x -= box;
+            else if(direction === "RIGHT") head.x += box;
+            else if(direction === "UP") head.y -= box;
+            else if(direction === "DOWN") head.y += box;
 
 
-        if (
-            mode === "chaos" ||
-            mode === "endless" ||
-            mode === "multiplayer" ||
-            mode === "threePlayer"
-        ) {
-            wrap(head);
-        } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
-            return gameOver();
+            if (
+                mode === "chaos" ||
+                mode === "endless" ||
+                mode === "multiplayer" ||
+                mode === "threePlayer"
+            ) {
+                wrap(head);
+            } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
+                handlePlayerDeath(1);
+                return;
+            }
+
+
+            if(snake.some(s => s.x === head.x && s.y === head.y)) {
+                handlePlayerDeath(1);
+                return;
+            }
+            if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) {
+                handlePlayerDeath(1);
+                return;
+            }
+            if (hitsBomb(head)) {
+                handlePlayerDeath(1);
+                return;
+            }
+
+
+            snake.unshift(head);
+            if(head.x === food.x && head.y === food.y){
+                handleScoreAndFood();
+            } else {
+                snake.pop();
+            }
         }
-        
-        if(snake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
-        if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
-
-
-        snake.unshift(head);
-        if(head.x === food.x && head.y === food.y){
-            handleScoreAndFood();
-        } else snake.pop();
 
 
         // Snake 2
-        if(snake2){
+        if(snake2 && alive2){
             if(moveQueue2.length > 0) direction2 = moveQueue2.shift();
             let h2 = { x: snake2[0].x, y: snake2[0].y };
             if(direction2 === "LEFT") h2.x -= box;
@@ -363,12 +445,23 @@ document.addEventListener("DOMContentLoaded", function(){
             ) {
                 wrap(h2);
             } else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) {
-                return gameOver();
+                handlePlayerDeath(2);
+                return;
             }
 
 
-            if(snake2.some(s => s.x === h2.x && s.y === h2.y) || snake.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
-            if(snake3 && snake3.some(s => s.x === h2.x && s.y === h2.y)) return gameOver();
+            if(snake2.some(s => s.x === h2.x && s.y === h2.y) || (alive1 && snake.length && snake.some(s => s.x === h2.x && s.y === h2.y))) {
+                handlePlayerDeath(2);
+                return;
+            }
+            if(alive3 && snake3 && snake3.some(s => s.x === h2.x && s.y === h2.y)) {
+                handlePlayerDeath(2);
+                return;
+            }
+            if (hitsBomb(h2)) {
+                handlePlayerDeath(2);
+                return;
+            }
 
 
             snake2.unshift(h2);
@@ -379,7 +472,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         // Snake 3
-        if(snake3){
+        if(snake3 && alive3){
             if(moveQueue3.length > 0) direction3 = moveQueue3.shift();
             let h3 = { x: snake3[0].x, y: snake3[0].y };
             if(direction3 === "LEFT") h3.x -= box;
@@ -396,12 +489,23 @@ document.addEventListener("DOMContentLoaded", function(){
             ) {
                 wrap(h3);
             } else if(h3.x < 0 || h3.y < 0 || h3.x >= size || h3.y >= size) {
-                return gameOver();
+                handlePlayerDeath(3);
+                return;
             }
 
 
-            if(snake3.some(s => s.x === h3.x && s.y === h3.y) || snake.some(s => s.x === h3.x && s.y === h3.y)) return gameOver();
-            if(snake2 && snake2.some(s => s.x === h3.x && s.y === h3.y)) return gameOver();
+            if(snake3.some(s => s.x === h3.x && s.y === h3.y) || (alive1 && snake.length && snake.some(s => s.x === h3.x && s.y === h3.y))) {
+                handlePlayerDeath(3);
+                return;
+            }
+            if(alive2 && snake2 && snake2.some(s => s.x === h3.x && s.y === h3.y)) {
+                handlePlayerDeath(3);
+                return;
+            }
+            if (hitsBomb(h3)) {
+                handlePlayerDeath(3);
+                return;
+            }
 
 
             snake3.unshift(h3);
@@ -414,7 +518,7 @@ document.addEventListener("DOMContentLoaded", function(){
         // NPC enemy
         if(npcSnake){
             let npcHead = { x: npcSnake[0].x, y: npcSnake[0].y };
-            let target = (snake2 && Math.random() > 0.5) ? snake2[0] : snake[0];
+            let target = (snake2 && alive2 && Math.random() > 0.5) ? snake2[0] : (snake.length ? snake[0] : (snake3 && alive3 ? snake3[0] : {x:0,y:0}));
             if(enemyFood && Math.random() < 0.25) target = enemyFood;
             if(Math.abs(target.x - npcHead.x) > Math.abs(target.y - npcHead.y))
                 npcHead.x += (target.x > npcHead.x) ? box : -box;
@@ -430,9 +534,15 @@ document.addEventListener("DOMContentLoaded", function(){
                 npcSnake.pop();
 
 
-            if(npcHead.x === snake[0].x && npcHead.y === snake[0].y) gameOver();
-            if(snake2 && npcHead.x === snake2[0].x && npcHead.y === snake2[0].y) gameOver();
-            if(snake3 && npcHead.x === snake3[0].x && npcHead.y === snake3[0].y) gameOver();
+            if(alive1 && snake.length && npcHead.x === snake[0].x && npcHead.y === snake[0].y) {
+                handlePlayerDeath(1);
+            }
+            if(alive2 && snake2 && snake2.length && npcHead.x === snake2[0].x && npcHead.y === snake2[0].y) {
+                handlePlayerDeath(2);
+            }
+            if(alive3 && snake3 && snake3.length && npcHead.x === snake3[0].x && npcHead.y === snake3[0].y) {
+                handlePlayerDeath(3);
+            }
         }
     }
 
@@ -443,17 +553,26 @@ document.addEventListener("DOMContentLoaded", function(){
         if(enemyFood) { ctx.fillStyle = "#ff00ff"; ctx.fillRect(enemyFood.x, enemyFood.y, box, box); }
 
 
+        // Bombs in chaos mode
+        if (mode === "chaos" && bombs.length > 0) {
+            ctx.fillStyle = "#ff8800";
+            bombs.forEach(b => ctx.fillRect(b.x, b.y, box, box));
+        }
+
+
         ctx.fillStyle = p1CP.value;
-        snake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+        if (alive1 && snake.length) {
+            snake.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
+        }
 
 
-        if(snake2){
+        if(snake2 && alive2){
             ctx.fillStyle = p2CP.value;
             snake2.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
         }
 
 
-        if(snake3){
+        if(snake3 && alive3){
             ctx.fillStyle = p3CP.value;
             snake3.forEach(s => ctx.fillRect(s.x + 1, s.y + 1, box - 2, box - 2));
         }
