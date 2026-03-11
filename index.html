@@ -51,18 +51,17 @@
             margin: 15px 0; 
         }
         button { 
-            padding: 4px 6px; /* Smaller padding */
-            font-size: 9px; /* Smaller font */
+            padding: 4px 6px;
+            font-size: 9px; 
             border: none; 
             border-radius: 4px; 
             font-weight: bold; 
             cursor: pointer; 
-            background: lime; 
             color: black; 
             transition: 0.2s; 
             white-space: nowrap;
             line-height: 1.1;
-            min-height: 22px; /* Reduced height */
+            min-height: 22px;
         }
         button:hover { filter: brightness(1.2); transform: scale(1.02); }
         select, input[type="color"] { 
@@ -124,6 +123,14 @@
             background: #555;
             border-radius: 2px;
         }
+        /* Unique colors for each game mode */
+        #normal { background: lime; }
+        #endless { background: #00d4ff; }
+        #survival { background: #ff3131; color: white; }
+        #slither { background: #ff8800; color: white; }
+        #roulette { background: #ff00ff; }
+        #multi { background: #ffcc00; }
+        #three { background: #8800ff; color: white; }
         #winScreen h1 { color: lime; text-shadow: 0 0 20px lime; }
         h3 { font-size: 16px; margin: 5px 0; }
     </style>
@@ -307,7 +314,6 @@ document.addEventListener("DOMContentLoaded", function(){
         winner = "";
 
 
-        // Initialize snakes as arrays
         snake = [{x: 8*box, y: 8*box}]; 
         snake2 = []; snake3 = []; npcSnake = []; enemyFood = null;
         direction = "RIGHT"; moveQueue = [];
@@ -353,7 +359,6 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function drawSnake(snakeArray, color) {
-        // Draw body trail
         for(let i = 1; i < snakeArray.length; i++) {
             const alpha = Math.max(0.2, 1 - (i * 0.03));
             const trailColor = adjustBrightness(color, 0.3 + (alpha * 0.7));
@@ -364,7 +369,6 @@ document.addEventListener("DOMContentLoaded", function(){
             drawRect(snakeArray[i].x, snakeArray[i].y, trailColor); 
             ctx.restore();
         }
-        // Draw head
         if (snakeArray.length > 0) {
             const head = snakeArray[0];
             if (equipTopHat) {
@@ -485,7 +489,7 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        if (mode === "normal" || mode === "endless" || mode === "survival" || mode === "slither") gameOver();
+        if (mode === "normal" || mode === "survival") gameOver();
         else if (!alive1 && !alive2 && !alive3) gameOver();
     }
 
@@ -498,7 +502,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function updateLogic() {
-        const hasWalls = (mode === "normal" || mode === "survival" || mode === "slither");
+        // FIXED: Slither now wraps like endless (removed from hasWalls check)
+        const hasWalls = (mode === "normal" || mode === "survival");
 
 
         // Player 1
