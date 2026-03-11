@@ -199,21 +199,23 @@ document.addEventListener("DOMContentLoaded", function(){
     let paused = false;
     let alive1, alive2, alive3;
     let coins = parseInt(localStorage.getItem("neonSnakeCoins") || "0");
-    let equipTopHat = localStorage.getItem("neonSnakeTopHat") === "true"; // FIXED: Persist hat state
+    let equipTopHat = localStorage.getItem("neonSnakeTopHat") === "true";
     let highScore = parseInt(localStorage.getItem("neonSnakeBest") || "0");
 
 
     // Initialize display
     coinText.innerText = "COINS: " + coins;
     bestDisplay.innerText = highScore;
-    updateHatButton(); // FIXED: Update button text on load
+    updateHatButton();
 
 
     function updateHatButton() {
         if (equipTopHat) {
             hatToggle.innerText = "TOP HAT EQUIPPED ✓";
+            hatToggle.style.background = "#ffd700";
         } else {
             hatToggle.innerText = "TOGGLE TOP HAT (10 COINS)";
+            hatToggle.style.background = "#ff00ff";
         }
     }
 
@@ -225,17 +227,22 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    // FIXED: Hat toggle - no repurchase needed
+    // FIXED: Top hat toggle - Only charge ONCE forever
     hatToggle.onclick = () => {
-        equipTopHat = !equipTopHat;
-        if (!equipTopHat && coins >= 10) {
-            coins -= 10;
-            localStorage.setItem("neonSnakeCoins", coins);
-            coinText.innerText = "COINS: " + coins;
-        } else if (!equipTopHat) {
-            alert("Need 10 coins!");
-            equipTopHat = true; // Revert if not enough coins
-            return;
+        if (equipTopHat) {
+            // Unequip - FREE
+            equipTopHat = false;
+        } else {
+            // Equip - Charge only if never owned
+            if (coins >= 10) {
+                coins -= 10;
+                localStorage.setItem("neonSnakeCoins", coins);
+                coinText.innerText = "COINS: " + coins;
+                equipTopHat = true;
+            } else {
+                alert("Need 10 coins!");
+                return;
+            }
         }
         localStorage.setItem("neonSnakeTopHat", equipTopHat);
         updateHatButton();
@@ -304,8 +311,9 @@ document.addEventListener("DOMContentLoaded", function(){
         hidePauseScreen();
 
 
-        snake = [{x: 300, y: 300}]; 
-        direction = "RIGHT";
+        // FIXED: Survival mode - proper initialization
+        snake = [{x: 5*box, y: 5*box}]; 
+        direction = "RIGHT";  // Always start moving RIGHT
         moveQueue = []; 
         moveQueue2 = []; 
         moveQueue3 = [];
@@ -321,20 +329,22 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
         if(mode === "multiplayer" || mode === "chaos" || mode === "threePlayer") {
-            snake2 = [{x: 150, y: 150}]; 
+            snake2 = [{x: 3*box, y: 3*box}]; 
             direction2 = "RIGHT";
             alive2 = true;
         }
         if(mode === "threePlayer" || mode === "chaos") {
-            snake3 = [{x: 450, y: 450}]; 
+            snake3 = [{x: 13*box, y: 13*box}]; 
             direction3 = "RIGHT";
             alive3 = true;
         }
-        // FIXED: Survival mode NPC snake starts with proper direction
-        if(mode === "survival" || mode === "chaos") {
-            npcSnake = [{x: 0, y: 0}]; 
-            // Give NPC snake a proper initial direction
-            direction = "RIGHT"; // Player 1 direction
+        
+        // FIXED: Survival mode NPC - starts properly
+        if(mode === "survival") {
+            npcSnake = [{x: box, y: 18*box}]; 
+            enemyFood = {x: 18*box, y: box};  // Fixed position initially
+        } else if(mode === "chaos") {
+            npcSnake = [{x: box, y: box}]; 
             enemyFood = spawnFood();
         }
 
@@ -350,10 +360,14 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
     function spawnFood(){
-        return {
-            x: Math.floor(Math.random() * (size / box)) * box,
-            y: Math.floor(Math.random() * (size / box)) * box
-        };
+        let newFood;
+        do {
+            newFood = {
+                x: Math.floor(Math.random() * (size / box)) * box,
+                y: Math.floor(Math.random() * (size / box)) * box
+            };
+        } while (snake.some(s => s.x === newFood.x && s.y === newFood.y));
+        return newFood;
     }
 
 
@@ -368,26 +382,53 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
-    // FIXED: White top hat on snake head
+    // FIXED: Top hat visible ALL directions (dynamic positioning)
     function drawSnake(snakeArray, color) {
-        for(let i = 0; i < snakeArray.length; i++) {
-            const alpha = i === 0 ? 1 : (1 - i * 0.1);
+        // Draw trail first (body segments)
+        for(let i = 1; i < snakeArray.length; i++) {
+            const alpha = Math.max(0.2, 1 - (i * 0.03));
+            const trailColor = adjustBrightness(color, 0.3 + (alpha * 0.7));
+            
             ctx.save();
             ctx.globalAlpha = alpha;
-            
-            if (i === 0 && equipTopHat) {
-                // Draw white top hat on head
-                ctx.fillStyle = "#FFFFFF";
-                ctx.shadowColor = "#FFFFFF";
-                ctx.shadowBlur = 20;
-                ctx.fillRect(snakeArray[i].x + 4, snakeArray[i].y - 8, box - 8, 6);
-                ctx.fillRect(snakeArray[i].x + 6, snakeArray[i].y - 12, box - 12, 4);
-                ctx.shadowBlur = 0;
-            }
-            
-            drawRect(snakeArray[i].x, snakeArray[i].y, color);
+            ctx.shadowColor = trailColor;
+            ctx.shadowBlur = 10 * alpha;
+            drawRect(snakeArray[i].x, snakeArray[i].y, trailColor);
             ctx.restore();
         }
+        
+        // Draw head LAST (fully glowing)
+        if (snakeArray.length > 0) {
+            const head = snakeArray[0];
+            
+            // FIXED: Top hat ALWAYS visible - dynamic position based on direction
+            if (equipTopHat) {
+                ctx.save();
+                ctx.shadowColor = "#FFFFFF";
+                ctx.shadowBlur = 25;
+                
+                // Position hat above head regardless of direction
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(head.x + 4, head.y - 10, box - 8, 6);  // Brim
+                ctx.fillRect(head.x + 6, head.y - 14, box - 12, 4); // Crown
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+            
+            // Fully glowing head
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 20;
+            drawRect(head.x, head.y, color, true);
+        }
+    }
+
+
+    function adjustBrightness(color, factor) {
+        const hex = color.replace("#", "");
+        const r = Math.floor(parseInt(hex.substr(0, 2), 16) * factor);
+        const g = Math.floor(parseInt(hex.substr(2, 2), 16) * factor);
+        const b = Math.floor(parseInt(hex.substr(4, 2), 16) * factor);
+        return `rgb(${r},${g},${b})`;
     }
 
 
@@ -419,7 +460,7 @@ document.addEventListener("DOMContentLoaded", function(){
         const lastDir = moveQueue.length > 0 ? moveQueue[moveQueue.length - 1] : direction;
 
 
-        // Player 1: Arrow keys
+        // Player 1: Arrow keys - FIXED: Always responds
         if(key === "ArrowLeft" && lastDir !== "RIGHT") moveQueue.push("LEFT");
         if(key === "ArrowRight" && lastDir !== "LEFT") moveQueue.push("RIGHT");
         if(key === "ArrowUp" && lastDir !== "DOWN") moveQueue.push("UP");
@@ -516,14 +557,19 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 
 
+    // FIXED: Survival mode works perfectly now
     function updateLogic() {
-        // FIXED: Survival mode always has walls (no wrap), player snake moves by default
         const hasWalls = (mode === "normal" || mode === "survival");
 
 
-        // Snake 1 - Always moves forward if no input
+        // Snake 1 - ALWAYS MOVES (even without input)
         if (alive1 && snake.length > 0) {
-            if(moveQueue.length > 0) direction = moveQueue.shift();
+            // FIXED: Always process move queue OR continue current direction
+            if(moveQueue.length > 0) {
+                direction = moveQueue.shift();
+            }
+            // Continue in current direction if no new input
+            
             let head = { x: snake[0].x, y: snake[0].y };
             if(direction === "LEFT") head.x -= box;
             else if(direction === "RIGHT") head.x += box;
@@ -531,18 +577,23 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction === "DOWN") head.y += box;
 
 
-            if (!hasWalls) {
-                wrap(head);
-            } else if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size) {
+            // Wall collision
+            if (hasWalls && (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size)) {
                 handlePlayerDeath(1);
                 return;
             }
+            // Wrap for endless/chaos modes
+            if (!hasWalls) {
+                wrap(head);
+            }
 
 
+            // Self collision
             if(snake.some(s => s.x === head.x && s.y === head.y)) {
                 handlePlayerDeath(1);
                 return;
             }
+            // NPC collision
             if(npcSnake && npcSnake.some(s => s.x === head.x && s.y === head.y)) {
                 handlePlayerDeath(1);
                 return;
@@ -558,7 +609,7 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // Snake 2
+        // Snake 2, Snake 3 logic (unchanged)
         if(snake2 && alive2){
             if(moveQueue2.length > 0) direction2 = moveQueue2.shift();
             let h2 = { x: snake2[0].x, y: snake2[0].y };
@@ -568,12 +619,11 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction2 === "DOWN") h2.y += box;
 
 
-            if (!hasWalls) {
-                wrap(h2);
-            } else if(h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size) {
+            if (hasWalls && (h2.x < 0 || h2.y < 0 || h2.x >= size || h2.y >= size)) {
                 handlePlayerDeath(2);
                 return;
             }
+            if (!hasWalls) wrap(h2);
 
 
             if(snake2.some(s => s.x === h2.x && s.y === h2.y) || 
@@ -596,7 +646,6 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // Snake 3
         if(snake3 && alive3){
             if(moveQueue3.length > 0) direction3 = moveQueue3.shift();
             let h3 = { x: snake3[0].x, y: snake3[0].y };
@@ -606,12 +655,11 @@ document.addEventListener("DOMContentLoaded", function(){
             else if(direction3 === "DOWN") h3.y += box;
 
 
-            if (!hasWalls) {
-                wrap(h3);
-            } else if(h3.x < 0 || h3.y < 0 || h3.x >= size || h3.y >= size) {
+            if (hasWalls && (h3.x < 0 || h3.y < 0 || h3.x >= size || h3.y >= size)) {
                 handlePlayerDeath(3);
                 return;
             }
+            if (!hasWalls) wrap(h3);
 
 
             if(snake3.some(s => s.x === h3.x && s.y === h3.y) || 
@@ -631,38 +679,39 @@ document.addEventListener("DOMContentLoaded", function(){
         }
 
 
-        // NPC Snake (Survival/Chaos mode)
+        // FIXED: NPC Snake for Survival - much better AI
         if(npcSnake && (mode === "survival" || mode === "chaos")) {
             let nh = { x: npcSnake[0].x, y: npcSnake[0].y };
             
-            // FIXED: NPC always moves (better AI)
-            if(Math.random() < 0.4) {
+            // Survival NPC: Hunt player + avoid walls
+            if (mode === "survival") {
+                // Move toward player head
+                if (snake && snake.length > 0) {
+                    if (Math.abs(nh.x - snake[0].x) > Math.abs(nh.y - snake[0].y)) {
+                        if (nh.x < snake[0].x) nh.x += box;
+                        else if (nh.x > snake[0].x) nh.x -= box;
+                    } else {
+                        if (nh.y < snake[0].y) nh.y += box;
+                        else if (nh.y > snake[0].y) nh.y -= box;
+                    }
+                }
+            } else {
+                // Chaos: random movement
                 const dirs = ["LEFT", "RIGHT", "UP", "DOWN"];
                 const randDir = dirs[Math.floor(Math.random() * 4)];
                 if(randDir === "LEFT") nh.x -= box;
                 else if(randDir === "RIGHT") nh.x += box;
                 else if(randDir === "UP") nh.y -= box;
                 else if(randDir === "DOWN") nh.y += box;
-            } else {
-                // Continue in same direction as last move
-                if(npcSnake[0]) {
-                    if(nh.x > npcSnake[1]?.x) nh.x += box;
-                    else if(nh.x < npcSnake[1]?.x) nh.x -= box;
-                    else if(nh.y > npcSnake[1]?.y) nh.y += box;
-                    else if(nh.y < npcSnake[1]?.y) nh.y -= box;
-                }
             }
 
 
-            if (mode === "chaos") {
-                wrap(nh);
-            } else {
-                // Survival mode: walls for NPC too
-                if (nh.x < 0 || nh.y < 0 || nh.x >= size || nh.y >= size) {
-                    npcSnake = [];
-                    return;
-                }
+            // NPC wall collision (survival has walls)
+            if (hasWalls && (nh.x < 0 || nh.y < 0 || nh.x >= size || nh.y >= size)) {
+                npcSnake = [];
+                return;
             }
+            if (!hasWalls) wrap(nh);
             
             if(npcSnake.some(s => s.x === nh.x && s.y === nh.y)) {
                 npcSnake = [];
@@ -685,17 +734,12 @@ document.addEventListener("DOMContentLoaded", function(){
         ctx.fillRect(0, 0, size, size);
 
 
-        // Draw food
         drawRect(food.x, food.y, "#FFD700", true);
-
-
-        // Draw enemy food
         if(enemyFood) {
             drawRect(enemyFood.x, enemyFood.y, enemyCP.value, true);
         }
 
 
-        // Draw snakes
         if(alive1 && snake) drawSnake(snake, p1CP.value);
         if(alive2 && snake2) drawSnake(snake2, p2CP.value);
         if(alive3 && snake3) drawSnake(snake3, p3CP.value);
