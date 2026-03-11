@@ -224,9 +224,9 @@ document.addEventListener("DOMContentLoaded", function(){
     const pauseScreen = document.getElementById("pauseScreen");
 
 
-    // Gold foil image
+    // ✅ CHANGED: Now uses your attached image.jpg for gold texture (head AND trail)
     const goldImg = new Image();
-    goldImg.src = "https://png.pngtree.com/thumb_back/fw800/background/20241005/pngtree-shiny-yellow-gold-foil-abstract-background-image_15808494.jpg";
+    goldImg.src = "image.jpg";  // Your uploaded gold texture file
     let goldImgReady = false;
     goldImg.onload = () => goldImgReady = true;
 
@@ -454,7 +454,7 @@ document.addEventListener("DOMContentLoaded", function(){
         const useGold = flags.gold;
 
 
-        // TRAIL
+        // TRAIL - Uses gold texture when active
         for(let i = 1; i < snakeArray.length; i++) {
             const alpha = Math.max(0.2, 1 - (i * 0.03));
             if (useGold) {
@@ -489,7 +489,7 @@ document.addEventListener("DOMContentLoaded", function(){
             }
 
 
-            // Head (gold image or normal color)
+            // HEAD - Uses gold texture when active
             if (useGold) {
                 drawGoldCell(head.x, head.y, 1);
             } else {
